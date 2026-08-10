@@ -1,13 +1,17 @@
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Test, Question
+from ..models import Test, Question, TestInvite
 from ..schemas import (
     TestCreate,
     TestResponse,
     QuestionCreate,
     QuestionResponse,
+    InviteCreate,
+    InviteResponse,
 )
 
 
@@ -58,6 +62,55 @@ def get_tests(
     tests = db.query(Test).all()
 
     return tests
+
+
+# ==========================================
+# GET ALL CANDIDATE INVITES
+# ==========================================
+
+@router.get(
+    "/invites",
+    response_model=list[InviteResponse],
+)
+def get_all_invites(
+    db: Session = Depends(get_db),
+):
+
+    invites = (
+        db.query(TestInvite)
+        .order_by(TestInvite.id.desc())
+        .all()
+    )
+
+    return invites
+
+
+# ==========================================
+# GET INVITE BY TOKEN
+# ==========================================
+
+@router.get(
+    "/invites/{token}",
+    response_model=InviteResponse,
+)
+def get_invite(
+    token: str,
+    db: Session = Depends(get_db),
+):
+
+    invite = (
+        db.query(TestInvite)
+        .filter(TestInvite.token == token)
+        .first()
+    )
+
+    if not invite:
+        raise HTTPException(
+            status_code=404,
+            detail="Invalid invitation link",
+        )
+
+    return invite
 
 
 # ==========================================
@@ -159,3 +212,46 @@ def get_questions(
     )
 
     return questions
+
+
+# ==========================================
+# CREATE CANDIDATE INVITE
+# ==========================================
+
+@router.post(
+    "/{test_id}/invites",
+    response_model=InviteResponse,
+)
+def create_invite(
+    test_id: int,
+    invite_data: InviteCreate,
+    db: Session = Depends(get_db),
+):
+
+    test = (
+        db.query(Test)
+        .filter(Test.id == test_id)
+        .first()
+    )
+
+    if not test:
+        raise HTTPException(
+            status_code=404,
+            detail="Test not found",
+        )
+
+    token = secrets.token_urlsafe(32)
+
+    invite = TestInvite(
+        test_id=test_id,
+        candidate_name=invite_data.candidate_name,
+        candidate_email=invite_data.candidate_email,
+        token=token,
+        status="pending",
+    )
+
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+    return invite

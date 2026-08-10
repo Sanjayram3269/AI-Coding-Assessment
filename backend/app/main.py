@@ -1,8 +1,10 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .database import Base, engine
 from . import models
 from .routes.tests import router as tests_router
+from .routes.submissions import router as submissions_router
 
 
 Base.metadata.create_all(bind=engine)
@@ -14,8 +16,23 @@ app = FastAPI(
 )
 
 
-app.include_router(tests_router)
+# Allow the Next.js frontend to communicate with FastAPI
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+
+app.include_router(tests_router)
+app.include_router(
+    submissions_router
+)
 
 @app.get("/")
 def root():
