@@ -118,9 +118,10 @@ Under the hood, a submitted solution is executed (where supported), sent to an L
 |------------|------------|
 | Frontend   | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, Monaco Editor |
 | Backend    | FastAPI, SQLAlchemy 2.0, Pydantic v2 |
-| Database   | SQLite (file-based, zero setup) |
+| Database   | SQLite locally (zero setup) / Postgres in production |
 | AI         | OpenRouter (LLM evaluation) |
 | Code exec  | Python `subprocess` sandboxed with a timeout |
+| Hosting    | Frontend → Vercel · Backend → Render |
 
 ---
 
@@ -156,9 +157,12 @@ AI-Coding-Assessment/
 │   │       ├── test/                      # Enter invite link/code
 │   │       ├── test/[token]/              # Question + Monaco editor + run/submit
 │   │       └── result/                    # Post-submission result summary
-│   └── lib/api.ts
+│   └── lib/
+│       ├── api.ts              # Fetch helpers for test/question CRUD
+│       └── config.ts           # API_URL (NEXT_PUBLIC_API_URL, falls back to localhost)
 │
-└── docs/                      # architecture / API / database notes
+├── render.yaml                 # Render Blueprint: backend web service + Postgres
+└── docs/                       # architecture / API / database notes
 ```
 
 ---
@@ -218,6 +222,39 @@ Open **http://localhost:3000**.
 
 ---
 
+## Deployment
+
+The frontend deploys cleanly to **Vercel**. The backend needs a host that runs a real, persistent process — not a serverless function — because it spawns subprocesses to execute submitted code and needs a filesystem that doesn't get wiped between requests. **Render** is used here, with Postgres replacing SQLite for production storage.
+
+### 1. Backend → Render
+
+This repo includes a `render.yaml` Blueprint.
+
+1. On [Render](https://render.com), click **New → Blueprint** and connect this GitHub repository. Render reads `render.yaml` and provisions:
+   - A **web service** for the FastAPI backend (root directory `backend/`)
+   - A free **Postgres** database, automatically wired to the backend via `DATABASE_URL`
+2. When prompted for the secret env vars:
+   - `OPENROUTER_API_KEY` — your OpenRouter key
+   - `FRONTEND_URL` — leave blank for now; you'll set it in step 3
+3. Deploy, then note the backend's URL (e.g. `https://ai-coding-assessment-backend.onrender.com`).
+
+*No Blueprint support on your plan? Deploy manually instead: **New → Web Service** → connect this repo → Root Directory `backend` → Build Command `pip install -r requirements.txt` → Start Command `uvicorn app.main:app --host 0.0.0.0 --port $PORT` → add a Postgres instance → set `DATABASE_URL` to its connection string.*
+
+### 2. Frontend → Vercel
+
+1. On [Vercel](https://vercel.com), **New Project** → import this repository.
+2. Set **Root Directory** to `frontend`.
+3. Add an environment variable: `NEXT_PUBLIC_API_URL` = your Render backend URL from step 1.
+4. Deploy, then note the frontend's URL (e.g. `https://ai-coding-assessment.vercel.app`).
+
+### 3. Connect them
+
+Back on Render → your backend service → **Environment** → set `FRONTEND_URL` to your Vercel URL from step 2 (comma-separate multiple origins if you also want to allow Vercel preview URLs) → the service redeploys automatically. This is what lets the backend's CORS policy accept requests from your live frontend.
+
+**Free-tier note:** Render's free web services spin down after inactivity — the first request after idling can take ~30–60s while it wakes back up.
+
+---
+
 ## API Summary
 
 | Method | Endpoint | Purpose |
@@ -245,7 +282,7 @@ Full interactive documentation is available at `http://127.0.0.1:8000/docs` whil
 
 - **Code execution** currently runs Python only. C++ and Java questions can be created, solved, and submitted, and are still fully AI-evaluated — they just aren't auto-compiled/run yet, so the "Run Code" button is disabled for them with an explanatory note.
 - **Text-type questions** are for free-form/theory answers and are never executed, only AI-evaluated.
-- The included SQLite database is intended for local development/demo use, not production concurrency.
+- **No real backend authentication.** Signing in as "Interviewer" vs "Candidate" is a client-side preference (`localStorage`), and every interviewer currently shares one hardcoded `interviewer_id`. There's a client-side route guard on `/interviewer/*` pages, but it's not a substitute for real accounts/sessions if this were to handle real candidate data in production.
 
 ---
 

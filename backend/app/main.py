@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -17,13 +19,27 @@ app = FastAPI(
 )
 
 
-# Allow the Next.js frontend to communicate with FastAPI
+# Local dev origins are always allowed. Add your deployed frontend
+# origin(s) via FRONTEND_URL (comma-separated for more than one,
+# e.g. a production domain plus Vercel preview URLs).
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+
+frontend_url = os.getenv("FRONTEND_URL")
+
+if frontend_url:
+    allowed_origins.extend(
+        origin.strip()
+        for origin in frontend_url.split(",")
+        if origin.strip()
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,8 +1,25 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
-DATABASE_URL = "sqlite:///./assessment.db"
+load_dotenv()
+
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "sqlite:///./assessment.db"
+)
+
+# Render (and some other hosts) hand out "postgres://", which
+# SQLAlchemy 2.0 no longer accepts — it requires "postgresql://".
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace(
+        "postgres://", "postgresql://", 1
+    )
+
+IS_SQLITE = DATABASE_URL.startswith("sqlite")
 
 
 class Base(DeclarativeBase):
@@ -11,7 +28,9 @@ class Base(DeclarativeBase):
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    connect_args=(
+        {"check_same_thread": False} if IS_SQLITE else {}
+    ),
 )
 
 

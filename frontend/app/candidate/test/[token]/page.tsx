@@ -3,6 +3,7 @@
 import Editor from "@monaco-editor/react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { API_URL } from "@/lib/config";
 
 type Invite = {
     id: number;
@@ -98,7 +99,7 @@ export default function CandidateTestPage() {
                 // 1. Validate invite token
 
                 const inviteResponse = await fetch(
-                    `http://127.0.0.1:8000/tests/invites/${token}`
+                    `${API_URL}/tests/invites/${token}`
                 );
 
                 if (!inviteResponse.ok) {
@@ -116,7 +117,7 @@ export default function CandidateTestPage() {
                 // 2. Load assessment
 
                 const testResponse = await fetch(
-                    `http://127.0.0.1:8000/tests/${inviteData.test_id}`
+                    `${API_URL}/tests/${inviteData.test_id}`
                 );
 
                 if (!testResponse.ok) {
@@ -134,7 +135,7 @@ export default function CandidateTestPage() {
                 // 3. Load questions
 
                 const questionsResponse = await fetch(
-                    `http://127.0.0.1:8000/tests/${inviteData.test_id}/questions`
+                    `${API_URL}/tests/${inviteData.test_id}/questions`
                 );
 
                 if (!questionsResponse.ok) {
@@ -254,7 +255,7 @@ export default function CandidateTestPage() {
 
     try {
         const response = await fetch(
-            "http://127.0.0.1:8000/submissions/run",
+            `${API_URL}/submissions/run`,
             {
                 method: "POST",
 
@@ -334,7 +335,7 @@ export default function CandidateTestPage() {
         try {
             // 1. Save the candidate submission
             const submissionResponse = await fetch(
-                "http://127.0.0.1:8000/submissions",
+                `${API_URL}/submissions`,
                 {
                     method: "POST",
 
@@ -367,7 +368,7 @@ export default function CandidateTestPage() {
             );
 
             const evaluationResponse = await fetch(
-                `http://127.0.0.1:8000/submissions/${submission.id}/evaluate`,
+                `${API_URL}/submissions/${submission.id}/evaluate`,
                 {
                     method: "POST",
                 }

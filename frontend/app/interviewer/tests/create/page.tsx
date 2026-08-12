@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "@/lib/config";
 
 type Question = {
     id: number;
@@ -113,7 +114,7 @@ export default function CreateAssessmentPage() {
             // Create the assessment
 
             const testResponse = await fetch(
-                "http://127.0.0.1:8000/tests",
+                `${API_URL}/tests`,
                 {
                     method: "POST",
 
@@ -145,7 +146,7 @@ export default function CreateAssessmentPage() {
             for (const question of questions) {
 
                 const questionResponse = await fetch(
-                    `http://127.0.0.1:8000/tests/${test.id}/questions`,
+                    `${API_URL}/tests/${test.id}/questions`,
                     {
                         method: "POST",
 

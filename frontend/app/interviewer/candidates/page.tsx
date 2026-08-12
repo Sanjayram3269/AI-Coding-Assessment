@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { API_URL } from "@/lib/config";
 
 type Evaluation = {
     overall_score: number;
@@ -59,14 +60,14 @@ export default function CandidatesPage() {
                 invitesResponse,
             ] = await Promise.all([
                 fetch(
-                    "http://127.0.0.1:8000/submissions",
+                    `${API_URL}/submissions`,
                     {
                         cache: "no-store",
                     }
                 ),
 
                 fetch(
-                    "http://127.0.0.1:8000/tests/invites",
+                    `${API_URL}/tests/invites`,
                     {
                         cache: "no-store",
                     }

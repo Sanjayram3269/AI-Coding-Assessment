@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { API_URL } from "@/lib/config";
 
 type Evaluation = {
     correctness_score: number;
@@ -72,14 +73,14 @@ export default function ReportDetailPage() {
                 invitesResponse,
             ] = await Promise.all([
                 fetch(
-                    "http://127.0.0.1:8000/submissions",
+                    `${API_URL}/submissions`,
                     {
                         cache: "no-store",
                     }
                 ),
 
                 fetch(
-                    "http://127.0.0.1:8000/tests/invites",
+                    `${API_URL}/tests/invites`,
                     {
                         cache: "no-store",
                     }

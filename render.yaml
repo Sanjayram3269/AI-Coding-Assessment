@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: ai-coding-assessment-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openrouter/free
+      - key: FRONTEND_URL
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ai-coding-assessment-db
+          property: connectionString
+
+databases:
+  - name: ai-coding-assessment-db
+    plan: free

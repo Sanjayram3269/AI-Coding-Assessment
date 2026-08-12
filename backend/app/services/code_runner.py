@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -27,7 +28,7 @@ def run_python_code(code: str) -> dict:
 
 
         process = subprocess.run(
-            ["python", temp_path],
+            [sys.executable, temp_path],
 
             capture_output=True,
 

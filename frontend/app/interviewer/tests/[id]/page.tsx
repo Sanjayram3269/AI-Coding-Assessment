@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { API_URL } from "@/lib/config";
 
 type Test = {
     id: number;
@@ -45,10 +46,10 @@ export default function TestDetailsPage() {
                 const [testResponse, questionsResponse] =
                     await Promise.all([
                         fetch(
-                            `http://127.0.0.1:8000/tests/${testId}`
+                            `${API_URL}/tests/${testId}`
                         ),
                         fetch(
-                            `http://127.0.0.1:8000/tests/${testId}/questions`
+                            `${API_URL}/tests/${testId}/questions`
                         ),
                     ]);
 
@@ -105,7 +106,7 @@ export default function TestDetailsPage() {
             setCreatingInvite(true);
 
             const response = await fetch(
-                `http://127.0.0.1:8000/tests/${testId}/invites`,
+                `${API_URL}/tests/${testId}/invites`,
                 {
                     method: "POST",
 
