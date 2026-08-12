@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 function extractToken(input: string): string {
@@ -68,11 +69,22 @@ export default function CandidateJoinPage() {
                         </p>
                     </div>
 
-                    {userName && (
-                        <div className="text-sm text-gray-400">
-                            {userName}
-                        </div>
-                    )}
+                    <div className="flex items-center gap-4">
+
+                        {userName && (
+                            <span className="hidden text-sm text-gray-400 sm:block">
+                                {userName}
+                            </span>
+                        )}
+
+                        <Link
+                            href="/"
+                            className="text-sm text-gray-400 transition hover:text-white"
+                        >
+                            ← Back to Sign In
+                        </Link>
+
+                    </div>
                 </div>
             </header>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -41,10 +42,35 @@ export default function InterviewerDashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    const [interviewerName, setInterviewerName] =
+        useState("Interviewer");
+
+    const router = useRouter();
+
 
     useEffect(() => {
         loadDashboard();
+
+        const savedUser = localStorage.getItem("user");
+
+        if (savedUser) {
+            try {
+                const user = JSON.parse(savedUser);
+
+                if (user.role === "interviewer" && user.name) {
+                    setInterviewerName(user.name);
+                }
+            } catch {
+                // ignore malformed local storage
+            }
+        }
     }, []);
+
+
+    const handleSignOut = () => {
+        localStorage.removeItem("user");
+        router.push("/");
+    };
 
 
     const loadDashboard = async () => {
@@ -187,12 +213,19 @@ export default function InterviewerDashboard() {
                     <div className="flex items-center gap-4">
 
                         <span className="hidden text-sm text-gray-300 sm:block">
-                            Demo Interviewer
+                            {interviewerName}
                         </span>
 
                         <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-600 font-semibold">
-                            D
+                            {interviewerName.charAt(0).toUpperCase()}
                         </div>
+
+                        <button
+                            onClick={handleSignOut}
+                            className="text-sm text-gray-400 transition hover:text-white"
+                        >
+                            Sign Out
+                        </button>
 
                     </div>
 
