@@ -122,6 +122,16 @@ class TestInvite(Base):
         String(255),
     )
 
+    profile_id: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    scheduled_at: Mapped[str | None] = mapped_column(
+        String(40),
+        nullable=True,
+    )
+
     token: Mapped[str] = mapped_column(
         String(100),
         unique=True,

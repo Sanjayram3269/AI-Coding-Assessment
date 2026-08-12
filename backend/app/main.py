@@ -1,13 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine
+from .database import Base, engine, run_lightweight_migrations
 from . import models
 from .routes.tests import router as tests_router
 from .routes.submissions import router as submissions_router
 
 
 Base.metadata.create_all(bind=engine)
+run_lightweight_migrations()
 
 
 app = FastAPI(

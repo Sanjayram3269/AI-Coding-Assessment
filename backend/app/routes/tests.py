@@ -165,6 +165,8 @@ def get_candidates_overview(
             ),
             "candidate_name": invite.candidate_name,
             "candidate_email": invite.candidate_email,
+            "profile_id": invite.profile_id,
+            "scheduled_at": invite.scheduled_at,
             "token": invite.token,
             "status": invite.status,
             "question_count": question_count,
@@ -337,6 +339,8 @@ def create_invite(
         test_id=test_id,
         candidate_name=invite_data.candidate_name,
         candidate_email=invite_data.candidate_email,
+        profile_id=invite_data.profile_id,
+        scheduled_at=invite_data.scheduled_at,
         token=token,
         status="pending",
     )

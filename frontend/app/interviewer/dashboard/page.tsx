@@ -19,6 +19,8 @@ type CandidateRow = {
     test_title: string;
     candidate_name: string;
     candidate_email: string;
+    profile_id: string | null;
+    scheduled_at: string | null;
     token: string;
     status: string;
     question_count: number;
@@ -165,6 +167,7 @@ export default function InterviewerDashboard() {
             [
                 row.candidate_name,
                 row.candidate_email,
+                row.profile_id ?? "",
                 row.test_title,
             ]
                 .join(" ")
@@ -482,6 +485,24 @@ export default function InterviewerDashboard() {
                                                                     row.candidate_email
                                                                 }
                                                             </div>
+                                                            {row.profile_id && (
+                                                                <div className="mt-1 text-xs text-gray-600">
+                                                                    ID: {row.profile_id}
+                                                                </div>
+                                                            )}
+                                                            {row.scheduled_at && (
+                                                                <div className="mt-1 text-xs text-gray-600">
+                                                                    {new Date(
+                                                                        row.scheduled_at
+                                                                    ).toLocaleString(
+                                                                        undefined,
+                                                                        {
+                                                                            dateStyle: "medium",
+                                                                            timeStyle: "short",
+                                                                        }
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </td>
 
 

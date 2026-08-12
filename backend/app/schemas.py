@@ -51,12 +51,21 @@ class InviteCreate(BaseModel):
         max_length=255,
     )
 
+    profile_id: str | None = Field(
+        default=None,
+        max_length=100,
+    )
+
+    scheduled_at: str | None = None
+
 
 class InviteResponse(BaseModel):
     id: int
     test_id: int
     candidate_name: str
     candidate_email: str
+    profile_id: str | None
+    scheduled_at: str | None
     token: str
     status: str
 

@@ -30,6 +30,8 @@ export default function TestDetailsPage() {
 
     const [candidateName, setCandidateName] = useState("");
     const [candidateEmail, setCandidateEmail] = useState("");
+    const [profileId, setProfileId] = useState("");
+    const [scheduledAt, setScheduledAt] = useState("");
     const [inviteLink, setInviteLink] = useState("");
     const [creatingInvite, setCreatingInvite] = useState(false);
     const [inviteError, setInviteError] = useState("");
@@ -117,6 +119,12 @@ export default function TestDetailsPage() {
 
                         candidate_email:
                             candidateEmail.trim(),
+
+                        profile_id:
+                            profileId.trim() || null,
+
+                        scheduled_at:
+                            scheduledAt || null,
                     }),
                 }
             );
@@ -297,6 +305,56 @@ export default function TestDetailsPage() {
                                 }
                                 placeholder="candidate@example.com"
                                 className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                            />
+
+                        </div>
+
+
+                        {/* Profile ID */}
+
+                        <div>
+
+                            <label className="text-sm text-gray-400">
+                                Profile ID{" "}
+                                <span className="text-gray-600">
+                                    (optional)
+                                </span>
+                            </label>
+
+                            <input
+                                value={profileId}
+                                onChange={(event) =>
+                                    setProfileId(
+                                        event.target.value
+                                    )
+                                }
+                                placeholder="Your internal reference/ID for this candidate"
+                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                            />
+
+                        </div>
+
+
+                        {/* Time and Date */}
+
+                        <div>
+
+                            <label className="text-sm text-gray-400">
+                                Scheduled Date &amp; Time{" "}
+                                <span className="text-gray-600">
+                                    (optional)
+                                </span>
+                            </label>
+
+                            <input
+                                type="datetime-local"
+                                value={scheduledAt}
+                                onChange={(event) =>
+                                    setScheduledAt(
+                                        event.target.value
+                                    )
+                                }
+                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500 [color-scheme:dark]"
                             />
 
                         </div>
