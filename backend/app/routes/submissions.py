@@ -237,52 +237,74 @@ def evaluate_submission(
 
     else:
 
+        # Some models don't fully honor the strict JSON schema and
+        # occasionally omit a field. Fall back gracefully instead
+        # of letting one flaky response crash the whole evaluation.
+
+        correctness_score = evaluation.get(
+            "correctness_score", 0
+        )
+
+        efficiency_score = evaluation.get(
+            "efficiency_score", 0
+        )
+
+        code_quality_score = evaluation.get(
+            "code_quality_score", 0
+        )
+
+        overall_score = evaluation.get(
+            "overall_score",
+            round(
+                (
+                    correctness_score
+                    + efficiency_score
+                    + code_quality_score
+                )
+                / 3
+            ),
+        )
+
         evaluation_record = AIEvaluation(
 
             submission_id=submission.id,
 
-            correctness_score=(
-                evaluation["correctness_score"]
+            correctness_score=correctness_score,
+
+            efficiency_score=efficiency_score,
+
+            code_quality_score=code_quality_score,
+
+            overall_score=overall_score,
+
+            is_correct=evaluation.get(
+                "is_correct", False
             ),
 
-            efficiency_score=(
-                evaluation["efficiency_score"]
+            time_complexity=evaluation.get(
+                "time_complexity", "Unknown"
             ),
 
-            code_quality_score=(
-                evaluation["code_quality_score"]
-            ),
-
-            overall_score=(
-                evaluation["overall_score"]
-            ),
-
-            is_correct=(
-                evaluation["is_correct"]
-            ),
-
-            time_complexity=(
-                evaluation["time_complexity"]
-            ),
-
-            space_complexity=(
-                evaluation["space_complexity"]
+            space_complexity=evaluation.get(
+                "space_complexity", "Unknown"
             ),
 
             detected_issues=json.dumps(
-                evaluation["detected_issues"]
+                evaluation.get("detected_issues", [])
             ),
 
             strengths=json.dumps(
-                evaluation["strengths"]
+                evaluation.get("strengths", [])
             ),
 
             improvements=json.dumps(
-                evaluation["improvements"]
+                evaluation.get("improvements", [])
             ),
 
-            explanation=(
-                evaluation["explanation"]
+            explanation=evaluation.get(
+                "explanation",
+                "The AI evaluator did not return a "
+                "full explanation for this submission.",
             ),
         )
 

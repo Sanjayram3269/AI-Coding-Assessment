@@ -27,6 +27,34 @@ type Question = {
     language: string;
 };
 
+type QuestionResult = {
+    questionId: number;
+    questionIndex: number;
+    questionText: string;
+    language: string;
+    submission: {
+        id: number;
+        code: string;
+        language: string;
+        stdout: string | null;
+        stderr: string | null;
+        execution_time_ms: number | null;
+    };
+    evaluation: {
+        overall_score: number;
+        correctness_score: number;
+        efficiency_score: number;
+        code_quality_score: number;
+        is_correct: boolean;
+        time_complexity: string;
+        space_complexity: string;
+        detected_issues: string[];
+        strengths: string[];
+        improvements: string[];
+        explanation: string;
+    };
+};
+
 export default function CandidateTestPage() {
     const params = useParams();
     const router = useRouter();
@@ -50,7 +78,11 @@ export default function CandidateTestPage() {
     const [error, setError] = useState("");
 
     const [runMessage, setRunMessage] = useState("");
-    const [submitted, setSubmitted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    const [submittedResults, setSubmittedResults] = useState<
+        Record<number, QuestionResult>
+    >({});
 
 
     /*
@@ -271,10 +303,13 @@ export default function CandidateTestPage() {
 
 
     /*
-     * Submit
+     * Submit the current question's solution.
      *
-     * Actual submission API will be connected
-     * in Milestone 8.
+     * Assessments can have multiple questions, so this only
+     * records the result for this question — it does not end
+     * the assessment. The candidate finishes explicitly via
+     * finishAssessment() once they're done with all questions
+     * they want to answer.
      */
 
     const handleSubmit = async () => {
@@ -286,9 +321,11 @@ export default function CandidateTestPage() {
             return;
         }
 
-        if (submitted) {
+        if (submitting) {
             return;
         }
+
+        setSubmitting(true);
 
         setRunMessage(
             "Submitting solution..."
@@ -346,26 +383,28 @@ export default function CandidateTestPage() {
                 );
             }
 
-            // 3. Store the latest result for the result page
-            sessionStorage.setItem(
-                "latestEvaluation",
-                JSON.stringify({
+            // 3. Record this question's result locally
+            setSubmittedResults((current) => ({
+                ...current,
+                [question.id]: {
+                    questionId: question.id,
+                    questionIndex: currentQuestion,
+                    questionText: question.question_text,
+                    language: question.language,
                     submission,
                     evaluation,
-                })
-            );
+                },
+            }));
 
-            // 4. Update the candidate page
-            setSubmitted(true);
+            const isLastQuestion =
+                currentQuestion === questions.length - 1;
 
             setRunMessage(
-                `Evaluation complete — Score: ${evaluation.overall_score}/100`
+                `Evaluation complete — Score: ${evaluation.overall_score}/100. ` +
+                    (isLastQuestion
+                        ? "You can finish the assessment now."
+                        : "Move to the next question, or finish the assessment when you're done.")
             );
-
-            // Automatically open the candidate result page
-            setTimeout(() => {
-                window.location.href = "/candidate/result";
-            }, 800);
         } catch (err) {
             console.error(err);
 
@@ -374,7 +413,40 @@ export default function CandidateTestPage() {
                     ? err.message
                     : "Unable to submit solution."
             );
+        } finally {
+            setSubmitting(false);
         }
+    };
+
+
+    /*
+     * Finish the assessment.
+     *
+     * Bundles every question the candidate submitted a result
+     * for into one combined report and hands off to the result
+     * page. Questions left unanswered are simply excluded.
+     */
+
+    const finishAssessment = () => {
+        const results = Object.values(submittedResults).sort(
+            (a, b) => a.questionIndex - b.questionIndex
+        );
+
+        if (results.length === 0 || !invite || !test) {
+            return;
+        }
+
+        sessionStorage.setItem(
+            "assessmentResults",
+            JSON.stringify({
+                testTitle: test.title,
+                candidateName: invite.candidate_name,
+                totalQuestions: questions.length,
+                results,
+            })
+        );
+
+        window.location.href = "/candidate/result";
     };
 
 
@@ -386,8 +458,6 @@ export default function CandidateTestPage() {
         setCurrentQuestion(index);
 
         setRunMessage("");
-
-        setSubmitted(false);
 
         setCode(
             `def solution():
@@ -458,43 +528,76 @@ export default function CandidateTestPage() {
             {/* QUESTION NAVIGATION */}
             {/* ================================================= */}
 
-            <div className="flex h-[58px] shrink-0 items-center justify-between border-b border-white/10 px-6">
+            <div className="flex h-[58px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-6">
 
                 <div className="flex items-center gap-2 overflow-x-auto">
 
                     {questions.map(
-                        (item, index) => (
+                        (item, index) => {
+                            const isAnswered = Boolean(
+                                submittedResults[item.id]
+                            );
 
-                            <button
-                                key={item.id}
-                                onClick={() =>
-                                    goToQuestion(index)
-                                }
-                                className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm transition ${
-                                    currentQuestion === index
-                                        ? "bg-blue-600 text-white"
-                                        : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
-                                }`}
-                            >
-                                {index + 1}
-                            </button>
-
-                        )
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() =>
+                                        goToQuestion(index)
+                                    }
+                                    title={
+                                        isAnswered
+                                            ? "Answered"
+                                            : undefined
+                                    }
+                                    className={`flex h-9 min-w-9 items-center justify-center rounded-lg px-3 text-sm transition ${
+                                        currentQuestion === index
+                                            ? "bg-blue-600 text-white"
+                                            : isAnswered
+                                              ? "bg-green-600/20 text-green-400 hover:bg-green-600/30"
+                                              : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white"
+                                    }`}
+                                >
+                                    {isAnswered
+                                        ? "✓"
+                                        : index + 1}
+                                </button>
+                            );
+                        }
                     )}
 
                 </div>
 
 
-                <div className="hidden text-sm text-gray-500 sm:block">
+                <div className="flex shrink-0 items-center gap-4">
 
-                    Question{" "}
-                    <span className="text-white">
-                        {currentQuestion + 1}
-                    </span>{" "}
-                    of{" "}
-                    <span className="text-white">
-                        {questions.length}
-                    </span>
+                    <div className="hidden text-sm text-gray-500 sm:block">
+
+                        Question{" "}
+                        <span className="text-white">
+                            {currentQuestion + 1}
+                        </span>{" "}
+                        of{" "}
+                        <span className="text-white">
+                            {questions.length}
+                        </span>
+
+                    </div>
+
+                    <button
+                        onClick={finishAssessment}
+                        disabled={
+                            Object.keys(submittedResults)
+                                .length === 0
+                        }
+                        className="rounded-lg bg-green-600 px-4 py-2 text-xs font-semibold transition hover:bg-green-500 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                        Finish Assessment (
+                        {
+                            Object.keys(submittedResults)
+                                .length
+                        }
+                        /{questions.length})
+                    </button>
 
                 </div>
 
@@ -735,11 +838,16 @@ export default function CandidateTestPage() {
 
                             <button
                                 onClick={handleSubmit}
-                                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold transition hover:bg-blue-500"
+                                disabled={submitting}
+                                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                {submitted
-                                    ? "Submitted"
-                                    : "Submit Solution"}
+                                {submitting
+                                    ? "Submitting..."
+                                    : submittedResults[
+                                          question.id
+                                      ]
+                                      ? "Resubmit"
+                                      : "Submit Solution"}
                             </button>
 
                         </div>

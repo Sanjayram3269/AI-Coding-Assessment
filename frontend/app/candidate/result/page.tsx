@@ -20,28 +20,41 @@ type Submission = {
     id: number;
     code?: string;
     language?: string;
-    stdout?: string;
-    stderr?: string;
-    execution_time_ms?: number;
+    stdout?: string | null;
+    stderr?: string | null;
+    execution_time_ms?: number | null;
 };
 
-type StoredResult = {
+type QuestionResult = {
+    questionId: number;
+    questionIndex: number;
+    questionText: string;
+    language: string;
     submission: Submission;
     evaluation: Evaluation;
 };
 
+type StoredResults = {
+    testTitle: string;
+    candidateName: string;
+    totalQuestions: number;
+    results: QuestionResult[];
+};
+
 export default function CandidateResultPage() {
-    const [result, setResult] = useState<StoredResult | null>(null);
+    const [data, setData] = useState<StoredResults | null>(
+        null
+    );
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         try {
             const stored = sessionStorage.getItem(
-                "latestEvaluation"
+                "assessmentResults"
             );
 
             if (stored) {
-                setResult(JSON.parse(stored));
+                setData(JSON.parse(stored));
             }
         } catch (error) {
             console.error(
@@ -65,7 +78,7 @@ export default function CandidateResultPage() {
         );
     }
 
-    if (!result) {
+    if (!data || data.results.length === 0) {
         return (
             <main className="min-h-screen bg-[#0a0a0a] text-white">
                 <div className="flex min-h-screen items-center justify-center px-6">
@@ -85,12 +98,20 @@ export default function CandidateResultPage() {
         );
     }
 
-    const { evaluation, submission } = result;
+    const { results, totalQuestions, testTitle, candidateName } =
+        data;
 
-    const score = Math.max(
-        0,
-        Math.min(100, evaluation.overall_score)
+    const averageScore = Math.round(
+        results.reduce(
+            (total, result) =>
+                total + result.evaluation.overall_score,
+            0
+        ) / results.length
     );
+
+    const correctCount = results.filter(
+        (result) => result.evaluation.is_correct
+    ).length;
 
     return (
         <main className="min-h-screen bg-[#0a0a0a] text-white">
@@ -101,7 +122,7 @@ export default function CandidateResultPage() {
                     </h1>
 
                     <p className="mt-1 text-sm text-gray-400">
-                        Your coding submission has been evaluated.
+                        {candidateName} — {testTitle}
                     </p>
                 </div>
             </header>
@@ -113,7 +134,7 @@ export default function CandidateResultPage() {
                         <div className="flex flex-col items-center justify-center">
                             <div className="flex h-40 w-40 flex-col items-center justify-center rounded-full border-8 border-blue-600/30 bg-blue-600/10">
                                 <span className="text-5xl font-bold">
-                                    {score}
+                                    {averageScore}
                                 </span>
 
                                 <span className="text-sm text-gray-400">
@@ -121,16 +142,10 @@ export default function CandidateResultPage() {
                                 </span>
                             </div>
 
-                            <div
-                                className={`mt-4 rounded-full px-4 py-2 text-sm font-medium ${
-                                    evaluation.is_correct
-                                        ? "bg-green-500/10 text-green-400"
-                                        : "bg-red-500/10 text-red-400"
-                                }`}
-                            >
-                                {evaluation.is_correct
-                                    ? "Solution appears correct"
-                                    : "Solution needs improvement"}
+                            <div className="mt-4 rounded-full bg-white/5 px-4 py-2 text-sm font-medium text-gray-300">
+                                {correctCount} of{" "}
+                                {results.length} answered
+                                correctly
                             </div>
                         </div>
 
@@ -140,137 +155,26 @@ export default function CandidateResultPage() {
                             </h2>
 
                             <p className="mt-2 text-gray-400">
-                                Your solution was analyzed for
-                                correctness, efficiency, and code
-                                quality.
+                                {results.length === totalQuestions
+                                    ? `All ${totalQuestions} question${
+                                          totalQuestions !== 1
+                                              ? "s"
+                                              : ""
+                                      } were answered and reviewed by AI.`
+                                    : `You answered ${results.length} of ${totalQuestions} questions. Unanswered questions are not scored.`}
                             </p>
-
-                            <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                                <ScoreCard
-                                    title="Correctness"
-                                    score={
-                                        evaluation.correctness_score
-                                    }
-                                />
-
-                                <ScoreCard
-                                    title="Efficiency"
-                                    score={
-                                        evaluation.efficiency_score
-                                    }
-                                />
-
-                                <ScoreCard
-                                    title="Code Quality"
-                                    score={
-                                        evaluation.code_quality_score
-                                    }
-                                />
-                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Complexity */}
-                <div className="mt-6 grid gap-6 md:grid-cols-2">
-                    <InfoCard
-                        title="Time Complexity"
-                        value={evaluation.time_complexity}
+                {/* Per-question breakdown */}
+                {results.map((result, index) => (
+                    <QuestionReport
+                        key={result.questionId}
+                        index={index}
+                        result={result}
                     />
-
-                    <InfoCard
-                        title="Space Complexity"
-                        value={evaluation.space_complexity}
-                    />
-                </div>
-
-                {/* AI Explanation */}
-                <section className="mt-6 rounded-2xl border border-white/10 bg-[#111111] p-7">
-                    <h2 className="text-xl font-bold">
-                        AI Evaluation
-                    </h2>
-
-                    <p className="mt-4 leading-7 text-gray-300">
-                        {evaluation.explanation}
-                    </p>
-                </section>
-
-                {/* Strengths */}
-                <ResultList
-                    title="Strengths"
-                    items={evaluation.strengths}
-                    emptyMessage="No specific strengths were identified."
-                />
-
-                {/* Issues */}
-                <ResultList
-                    title="Detected Issues"
-                    items={evaluation.detected_issues}
-                    emptyMessage="No specific issues were detected."
-                />
-
-                {/* Improvements */}
-                <ResultList
-                    title="Suggested Improvements"
-                    items={evaluation.improvements}
-                    emptyMessage="No additional improvements were suggested."
-                />
-
-                {/* Execution Details */}
-                <section className="mt-6 rounded-2xl border border-white/10 bg-[#111111] p-7">
-                    <h2 className="text-xl font-bold">
-                        Submission Details
-                    </h2>
-
-                    <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                        <InfoCard
-                            title="Submission ID"
-                            value={`#${submission.id}`}
-                        />
-
-                        <InfoCard
-                            title="Language"
-                            value={
-                                submission.language ||
-                                "Python"
-                            }
-                        />
-
-                        <InfoCard
-                            title="Execution Time"
-                            value={
-                                submission.execution_time_ms !==
-                                undefined
-                                    ? `${submission.execution_time_ms} ms`
-                                    : "Not available"
-                            }
-                        />
-                    </div>
-
-                    {submission.stderr ? (
-                        <div className="mt-5 rounded-xl border border-red-500/20 bg-red-500/5 p-5">
-                            <h3 className="font-semibold text-red-400">
-                                Program Error
-                            </h3>
-
-                            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-gray-300">
-                                {submission.stderr}
-                            </pre>
-                        </div>
-                    ) : null}
-
-                    {submission.stdout ? (
-                        <div className="mt-5 rounded-xl border border-white/10 bg-black/20 p-5">
-                            <h3 className="font-semibold">
-                                Program Output
-                            </h3>
-
-                            <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-gray-300">
-                                {submission.stdout}
-                            </pre>
-                        </div>
-                    ) : null}
-                </section>
+                ))}
 
                 <p className="mt-8 text-center text-xs text-gray-600">
                     Your assessment result has been recorded.
@@ -280,6 +184,174 @@ export default function CandidateResultPage() {
     );
 }
 
+function QuestionReport({
+    index,
+    result,
+}: {
+    index: number;
+    result: QuestionResult;
+}) {
+    const { evaluation, submission } = result;
+
+    const score = Math.max(
+        0,
+        Math.min(100, evaluation.overall_score)
+    );
+
+    return (
+        <section className="mt-8">
+            <div className="mb-4 flex items-center gap-3">
+                <span className="rounded-full bg-blue-600/10 px-3 py-1 text-xs font-medium text-blue-400">
+                    Question {index + 1}
+                </span>
+
+                <span className="rounded-md bg-white/5 px-3 py-1 text-xs text-gray-400">
+                    {result.language}
+                </span>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-[#111111] p-7">
+                <div className="grid gap-6 md:grid-cols-[160px_1fr] md:items-center">
+                    <div className="flex flex-col items-center">
+                        <div className="flex h-28 w-28 flex-col items-center justify-center rounded-full border-4 border-blue-600/30 bg-blue-600/10">
+                            <span className="text-3xl font-bold">
+                                {score}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                                / 100
+                            </span>
+                        </div>
+
+                        <div
+                            className={`mt-3 rounded-full px-3 py-1 text-xs font-medium ${
+                                evaluation.is_correct
+                                    ? "bg-green-500/10 text-green-400"
+                                    : "bg-red-500/10 text-red-400"
+                            }`}
+                        >
+                            {evaluation.is_correct
+                                ? "Correct"
+                                : "Needs improvement"}
+                        </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <ScoreCard
+                            title="Correctness"
+                            score={evaluation.correctness_score}
+                        />
+
+                        <ScoreCard
+                            title="Efficiency"
+                            score={evaluation.efficiency_score}
+                        />
+
+                        <ScoreCard
+                            title="Code Quality"
+                            score={evaluation.code_quality_score}
+                        />
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <InfoCard
+                    title="Time Complexity"
+                    value={evaluation.time_complexity}
+                />
+
+                <InfoCard
+                    title="Space Complexity"
+                    value={evaluation.space_complexity}
+                />
+            </div>
+
+            <section className="mt-4 rounded-2xl border border-white/10 bg-[#111111] p-6">
+                <h3 className="text-lg font-bold">
+                    AI Evaluation
+                </h3>
+
+                <p className="mt-3 leading-7 text-gray-300">
+                    {evaluation.explanation}
+                </p>
+            </section>
+
+            <ResultList
+                title="Strengths"
+                items={evaluation.strengths}
+                emptyMessage="No specific strengths were identified."
+            />
+
+            <ResultList
+                title="Detected Issues"
+                items={evaluation.detected_issues}
+                emptyMessage="No specific issues were detected."
+            />
+
+            <ResultList
+                title="Suggested Improvements"
+                items={evaluation.improvements}
+                emptyMessage="No additional improvements were suggested."
+            />
+
+            <section className="mt-4 rounded-2xl border border-white/10 bg-[#111111] p-6">
+                <h3 className="text-lg font-bold">
+                    Submission Details
+                </h3>
+
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                    <InfoCard
+                        title="Submission ID"
+                        value={`#${submission.id}`}
+                    />
+
+                    <InfoCard
+                        title="Language"
+                        value={
+                            submission.language ||
+                            result.language
+                        }
+                    />
+
+                    <InfoCard
+                        title="Execution Time"
+                        value={
+                            submission.execution_time_ms !==
+                                undefined &&
+                            submission.execution_time_ms !== null
+                                ? `${submission.execution_time_ms} ms`
+                                : "Not available"
+                        }
+                    />
+                </div>
+
+                {submission.stderr ? (
+                    <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-4">
+                        <h4 className="font-semibold text-red-400">
+                            Program Error
+                        </h4>
+
+                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-sm text-gray-300">
+                            {submission.stderr}
+                        </pre>
+                    </div>
+                ) : null}
+
+                {submission.stdout ? (
+                    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+                        <h4 className="font-semibold">
+                            Program Output
+                        </h4>
+
+                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-sm text-gray-300">
+                            {submission.stdout}
+                        </pre>
+                    </div>
+                ) : null}
+            </section>
+        </section>
+    );
+}
 
 function ScoreCard({
     title,
@@ -337,13 +409,13 @@ function ResultList({
     emptyMessage: string;
 }) {
     return (
-        <section className="mt-6 rounded-2xl border border-white/10 bg-[#111111] p-7">
-            <h2 className="text-xl font-bold">
+        <section className="mt-4 rounded-2xl border border-white/10 bg-[#111111] p-6">
+            <h3 className="text-lg font-bold">
                 {title}
-            </h2>
+            </h3>
 
             {items.length > 0 ? (
-                <ul className="mt-5 space-y-3">
+                <ul className="mt-4 space-y-3">
                     {items.map((item, index) => (
                         <li
                             key={`${title}-${index}`}
@@ -354,7 +426,7 @@ function ResultList({
                     ))}
                 </ul>
             ) : (
-                <p className="mt-4 text-sm text-gray-500">
+                <p className="mt-3 text-sm text-gray-500">
                     {emptyMessage}
                 </p>
             )}
