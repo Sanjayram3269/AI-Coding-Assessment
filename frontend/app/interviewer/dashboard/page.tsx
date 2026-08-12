@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+const API_URL = "http://127.0.0.1:8000";
+
 type Assessment = {
     id: number;
     title: string;
@@ -10,30 +12,18 @@ type Assessment = {
     interviewer_id: number;
 };
 
-type Invite = {
-    id: number;
+type CandidateRow = {
+    invite_id: number;
     test_id: number;
+    test_title: string;
     candidate_name: string;
     candidate_email: string;
     token: string;
     status: string;
-};
-
-type Evaluation = {
-    overall_score: number;
-    correctness_score: number;
-    efficiency_score: number;
-    code_quality_score: number;
-    is_correct: boolean;
-};
-
-type Submission = {
-    id: number;
-    invite_id: number;
-    question_id: number;
-    language: string;
-    status: string;
-    evaluation: Evaluation | null;
+    question_count: number;
+    submitted_count: number;
+    average_score: number | null;
+    latest_submission_id: number | null;
 };
 
 export default function InterviewerDashboard() {
@@ -41,11 +31,12 @@ export default function InterviewerDashboard() {
         Assessment[]
     >([]);
 
-    const [submissions, setSubmissions] = useState<
-        Submission[]
+    const [candidateRows, setCandidateRows] = useState<
+        CandidateRow[]
     >([]);
 
-    const [invites, setInvites] = useState<Invite[]>([]);
+    const [search, setSearch] = useState("");
+    const [copiedToken, setCopiedToken] = useState("");
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -63,25 +54,17 @@ export default function InterviewerDashboard() {
 
             const [
                 testsResponse,
-                submissionsResponse,
-                invitesResponse,
+                candidatesResponse,
             ] = await Promise.all([
                 fetch(
-                    "http://127.0.0.1:8000/tests",
+                    `${API_URL}/tests`,
                     {
                         cache: "no-store",
                     }
                 ),
 
                 fetch(
-                    "http://127.0.0.1:8000/submissions",
-                    {
-                        cache: "no-store",
-                    }
-                ),
-
-                fetch(
-                    "http://127.0.0.1:8000/tests/invites",
+                    `${API_URL}/tests/candidates/overview`,
                     {
                         cache: "no-store",
                     }
@@ -96,16 +79,9 @@ export default function InterviewerDashboard() {
             }
 
 
-            if (!submissionsResponse.ok) {
+            if (!candidatesResponse.ok) {
                 throw new Error(
                     "Unable to load candidate data."
-                );
-            }
-
-
-            if (!invitesResponse.ok) {
-                throw new Error(
-                    "Unable to load candidate names."
                 );
             }
 
@@ -113,11 +89,8 @@ export default function InterviewerDashboard() {
             const testsData =
                 await testsResponse.json();
 
-            const submissionsData =
-                await submissionsResponse.json();
-
-            const invitesData =
-                await invitesResponse.json();
+            const candidatesData =
+                await candidatesResponse.json();
 
 
             setAssessments(
@@ -127,16 +100,9 @@ export default function InterviewerDashboard() {
             );
 
 
-            setSubmissions(
-                Array.isArray(submissionsData)
-                    ? submissionsData
-                    : []
-            );
-
-
-            setInvites(
-                Array.isArray(invitesData)
-                    ? invitesData
+            setCandidateRows(
+                Array.isArray(candidatesData)
+                    ? candidatesData
                     : []
             );
 
@@ -155,53 +121,46 @@ export default function InterviewerDashboard() {
     };
 
 
-    /*
-     * Create a quick lookup:
-     *
-     * invite ID
-     *      ↓
-     * candidate name/email
-     */
-    const inviteMap = useMemo(() => {
-        return new Map(
-            invites.map((invite) => [
-                invite.id,
-                invite,
-            ])
-        );
-    }, [invites]);
-
-
-    /*
-     * Count unique candidates.
-     */
-    const candidateCount = useMemo(() => {
-        return new Set(
-            submissions.map(
-                (submission) =>
-                    submission.invite_id
-            )
-        ).size;
-    }, [submissions]);
-
-
-    /*
-     * Count completed AI reports.
-     */
     const reportCount = useMemo(() => {
-        return submissions.filter(
-            (submission) =>
-                submission.evaluation !== null
+        return candidateRows.filter(
+            (row) => row.average_score !== null
         ).length;
-    }, [submissions]);
+    }, [candidateRows]);
 
 
-    /*
-     * Get latest candidates for dashboard preview.
-     */
-    const recentCandidates = useMemo(() => {
-        return submissions.slice(0, 5);
-    }, [submissions]);
+    const filteredRows = useMemo(() => {
+        const query = search.trim().toLowerCase();
+
+        if (!query) {
+            return candidateRows;
+        }
+
+        return candidateRows.filter((row) =>
+            [
+                row.candidate_name,
+                row.candidate_email,
+                row.test_title,
+            ]
+                .join(" ")
+                .toLowerCase()
+                .includes(query)
+        );
+    }, [candidateRows, search]);
+
+
+    const copyInviteLink = (token: string) => {
+        const link = `${window.location.origin}/candidate/test/${token}`;
+
+        navigator.clipboard.writeText(link);
+
+        setCopiedToken(token);
+
+        setTimeout(() => {
+            setCopiedToken((current) =>
+                current === token ? "" : current
+            );
+        }, 1500);
+    };
 
 
     return (
@@ -300,8 +259,8 @@ export default function InterviewerDashboard() {
                                 </h2>
 
                                 <p className="mt-2 text-gray-500">
-                                    Create and manage your coding
-                                    assessments.
+                                    Create tests, invite candidates,
+                                    and track results.
                                 </p>
 
                             </div>
@@ -311,7 +270,7 @@ export default function InterviewerDashboard() {
                                 href="/interviewer/tests/create"
                                 className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 font-semibold transition hover:bg-blue-500"
                             >
-                                + Create Assessment
+                                + Create Test
                             </Link>
 
                         </div>
@@ -343,9 +302,9 @@ export default function InterviewerDashboard() {
                                 value={
                                     loading
                                         ? "—"
-                                        : candidateCount
+                                        : candidateRows.length
                                 }
-                                subtitle="Unique candidates who submitted"
+                                subtitle="Invited candidates"
                             />
 
 
@@ -362,30 +321,33 @@ export default function InterviewerDashboard() {
                         </div>
 
 
-                        {/* Recent Candidates */}
+                        {/* Candidates table */}
                         <div className="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
 
-                            <div className="flex items-center justify-between border-b border-white/10 px-7 py-5">
+                            <div className="flex flex-col gap-4 border-b border-white/10 px-7 py-5 sm:flex-row sm:items-center sm:justify-between">
 
                                 <div>
 
                                     <h3 className="text-xl font-semibold">
-                                        Recent Candidates
+                                        Candidates
                                     </h3>
 
                                     <p className="mt-1 text-sm text-gray-500">
-                                        Latest candidate submissions
+                                        Every invited candidate across
+                                        all assessments.
                                     </p>
 
                                 </div>
 
 
-                                <Link
-                                    href="/interviewer/candidates"
-                                    className="text-sm text-blue-400 hover:text-blue-300"
-                                >
-                                    View all
-                                </Link>
+                                <input
+                                    value={search}
+                                    onChange={(event) =>
+                                        setSearch(event.target.value)
+                                    }
+                                    placeholder="Search user, email, or test..."
+                                    className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-sm outline-none transition focus:border-blue-500 sm:w-72"
+                                />
 
                             </div>
 
@@ -396,106 +358,183 @@ export default function InterviewerDashboard() {
                                     Loading candidates...
                                 </div>
 
-                            ) : recentCandidates.length === 0 ? (
+                            ) : filteredRows.length === 0 ? (
 
                                 <div className="p-10 text-center">
 
                                     <p className="text-gray-400">
-                                        No candidates yet.
+                                        {candidateRows.length === 0
+                                            ? "No candidates invited yet."
+                                            : "No candidates match your search."}
                                     </p>
 
-                                    <p className="mt-2 text-sm text-gray-600">
-                                        Candidates will appear here
-                                        after submitting an assessment.
-                                    </p>
+                                    {candidateRows.length === 0 && (
+                                        <p className="mt-2 text-sm text-gray-600">
+                                            Open an assessment below
+                                            and generate an invite
+                                            link to get started.
+                                        </p>
+                                    )}
 
                                 </div>
 
                             ) : (
 
-                                <div>
+                                <div className="overflow-x-auto">
 
-                                    {recentCandidates.map(
-                                        (submission) => {
+                                    <table className="w-full">
 
-                                            const invite =
-                                                inviteMap.get(
-                                                    submission.invite_id
-                                                );
+                                        <thead>
+                                            <tr className="border-b border-white/10 text-left text-sm text-gray-500">
 
+                                                <th className="px-6 py-4 font-medium">
+                                                    Test Name
+                                                </th>
 
-                                            return (
-                                                <div
-                                                    key={
-                                                        submission.id
-                                                    }
-                                                    className="flex flex-col gap-4 border-b border-white/10 px-7 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
-                                                >
+                                                <th className="px-6 py-4 font-medium">
+                                                    User Details
+                                                </th>
 
-                                                    <div>
+                                                <th className="px-6 py-4 font-medium">
+                                                    Questions
+                                                </th>
 
-                                                        <h4 className="font-semibold">
+                                                <th className="px-6 py-4 font-medium">
+                                                    Invite Link
+                                                </th>
 
-                                                            {invite
-                                                                ?.candidate_name ||
-                                                                `Candidate #${submission.invite_id}`}
+                                                <th className="px-6 py-4 font-medium">
+                                                    Join Link
+                                                </th>
 
-                                                        </h4>
+                                                <th className="px-6 py-4 font-medium">
+                                                    Score
+                                                </th>
 
+                                                <th className="px-6 py-4 font-medium">
+                                                    Report
+                                                </th>
 
-                                                        <p className="mt-1 text-sm text-gray-500">
-
-                                                            {invite
-                                                                ?.candidate_email ||
-                                                                "Email unavailable"}
-
-                                                        </p>
-
-                                                    </div>
+                                            </tr>
+                                        </thead>
 
 
-                                                    <div className="flex items-center gap-4">
+                                        <tbody>
 
-                                                        {submission.evaluation ? (
+                                            {filteredRows.map(
+                                                (row) => (
 
-                                                            <div className="text-right">
+                                                    <tr
+                                                        key={
+                                                            row.invite_id
+                                                        }
+                                                        className="border-b border-white/5 transition hover:bg-white/[0.03]"
+                                                    >
 
-                                                                <p className="text-lg font-bold">
+                                                        <td className="px-6 py-5 font-medium">
+                                                            {
+                                                                row.test_title
+                                                            }
+                                                        </td>
 
+
+                                                        <td className="px-6 py-5">
+                                                            <div>
+                                                                {
+                                                                    row.candidate_name
+                                                                }
+                                                            </div>
+                                                            <div className="mt-1 text-xs text-gray-500">
+                                                                {
+                                                                    row.candidate_email
+                                                                }
+                                                            </div>
+                                                        </td>
+
+
+                                                        <td className="px-6 py-5 text-gray-400">
+                                                            {
+                                                                row.question_count
+                                                            }
+                                                        </td>
+
+
+                                                        <td className="px-6 py-5">
+                                                            <button
+                                                                onClick={() =>
+                                                                    copyInviteLink(
+                                                                        row.token
+                                                                    )
+                                                                }
+                                                                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium transition hover:bg-white/10"
+                                                            >
+                                                                {copiedToken ===
+                                                                row.token
+                                                                    ? "Copied!"
+                                                                    : "Copy link"}
+                                                            </button>
+                                                        </td>
+
+
+                                                        <td className="px-6 py-5">
+                                                            <Link
+                                                                href={`/interviewer/tests/${row.test_id}`}
+                                                                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium transition hover:bg-white/10"
+                                                            >
+                                                                Manage
+                                                            </Link>
+                                                        </td>
+
+
+                                                        <td className="px-6 py-5">
+                                                            {row.average_score !==
+                                                            null ? (
+                                                                <span className="font-bold">
                                                                     {
-                                                                        submission
-                                                                            .evaluation
-                                                                            .overall_score
+                                                                        row.average_score
                                                                     }
-
-                                                                    <span className="text-sm font-normal text-gray-500">
+                                                                    <span className="font-normal text-gray-500">
                                                                         {" "}
                                                                         / 100
                                                                     </span>
+                                                                </span>
+                                                            ) : row.submitted_count >
+                                                              0 ? (
+                                                                <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs text-yellow-400">
+                                                                    Evaluating
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-gray-500">
+                                                                    Not started
+                                                                </span>
+                                                            )}
+                                                        </td>
 
-                                                                </p>
 
+                                                        <td className="px-6 py-5">
+                                                            {row.latest_submission_id !==
+                                                            null ? (
+                                                                <a
+                                                                    href={`${API_URL}/submissions/${row.latest_submission_id}/report`}
+                                                                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium transition hover:bg-white/10"
+                                                                >
+                                                                    Download
+                                                                </a>
+                                                            ) : (
+                                                                <span className="text-gray-600">
+                                                                    —
+                                                                </span>
+                                                            )}
+                                                        </td>
 
-                                                                <p className="text-xs text-gray-500">
-                                                                    AI Evaluated
-                                                                </p>
+                                                    </tr>
 
-                                                            </div>
+                                                )
+                                            )}
 
-                                                        ) : (
+                                        </tbody>
 
-                                                            <span className="rounded-full bg-yellow-500/10 px-3 py-1 text-xs text-yellow-400">
-                                                                Pending
-                                                            </span>
-
-                                                        )}
-
-                                                    </div>
-
-                                                </div>
-                                            );
-                                        }
-                                    )}
+                                    </table>
 
                                 </div>
 
@@ -504,14 +543,19 @@ export default function InterviewerDashboard() {
                         </div>
 
 
-                        {/* Assessments */}
+                        {/* Assessments quick access */}
                         <div className="mt-8 overflow-hidden rounded-2xl border border-white/10 bg-[#111111]">
 
                             <div className="border-b border-white/10 px-7 py-5">
 
-                                <h3 className="text-xl font-semibold">
+                                <h3 className="text-lg font-semibold">
                                     Your Assessments
                                 </h3>
+
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Open an assessment to add
+                                    questions or invite candidates.
+                                </p>
 
                             </div>
 
@@ -551,19 +595,18 @@ export default function InterviewerDashboard() {
                                                 key={
                                                     assessment.id
                                                 }
-                                                className="flex flex-col gap-4 border-b border-white/10 px-7 py-6 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                                                className="flex flex-col gap-4 border-b border-white/10 px-7 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
                                             >
 
                                                 <div>
 
-                                                    <h4 className="text-lg font-semibold">
+                                                    <h4 className="text-sm font-semibold">
                                                         {
                                                             assessment.title
                                                         }
                                                     </h4>
 
-
-                                                    <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                                                    <p className="mt-1 max-w-2xl text-xs text-gray-500">
 
                                                         {assessment.description ||
                                                             "No description provided."}
@@ -573,27 +616,12 @@ export default function InterviewerDashboard() {
                                                 </div>
 
 
-                                                <div className="flex items-center gap-3">
-
-                                                    <span className="rounded-full bg-white/5 px-4 py-2 text-xs text-gray-400">
-
-                                                        Assessment #
-
-                                                        {
-                                                            assessment.id
-                                                        }
-
-                                                    </span>
-
-
-                                                    <Link
-                                                        href={`/interviewer/tests/${assessment.id}`}
-                                                        className="rounded-lg border border-white/10 px-5 py-2.5 text-sm font-medium transition hover:bg-white/5"
-                                                    >
-                                                        View
-                                                    </Link>
-
-                                                </div>
+                                                <Link
+                                                    href={`/interviewer/tests/${assessment.id}`}
+                                                    className="rounded-lg border border-white/10 px-4 py-2 text-xs font-medium transition hover:bg-white/5"
+                                                >
+                                                    Manage
+                                                </Link>
 
                                             </div>
 
@@ -603,27 +631,6 @@ export default function InterviewerDashboard() {
                                 </div>
 
                             )}
-
-                        </div>
-
-
-                        {/* Bottom Actions */}
-                        <div className="mt-6 flex flex-wrap gap-3">
-
-                            <Link
-                                href="/interviewer/candidates"
-                                className="rounded-lg border border-white/10 px-5 py-3 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white"
-                            >
-                                View Candidates
-                            </Link>
-
-
-                            <Link
-                                href="/interviewer/reports"
-                                className="rounded-lg border border-white/10 px-5 py-3 text-sm font-medium text-gray-300 hover:bg-white/5 hover:text-white"
-                            >
-                                View Reports
-                            </Link>
 
                         </div>
 

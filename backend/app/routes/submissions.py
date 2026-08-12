@@ -1,6 +1,7 @@
+import html
 import json
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from ..database import get_db
@@ -10,6 +11,7 @@ from ..models import (
     TestInvite,
     Question,
     AIEvaluation,
+    Test,
 )
 
 from ..schemas import (
@@ -108,28 +110,39 @@ def create_submission(
         )
 
 
-    if submission_data.language.lower() != "python":
-        raise HTTPException(
-            status_code=400,
-            detail="Only Python submissions are supported right now.",
+    if submission_data.language.lower() == "python":
+
+        result = run_python_code(
+            submission_data.code
         )
 
+        submission = Submission(
+            invite_id=invite.id,
+            question_id=question.id,
+            code=submission_data.code,
+            language=submission_data.language,
+            status=result["status"],
+            stdout=result["stdout"],
+            stderr=result["stderr"],
+            execution_time_ms=result["execution_time_ms"],
+        )
 
-    result = run_python_code(
-        submission_data.code
-    )
+    else:
 
-
-    submission = Submission(
-        invite_id=invite.id,
-        question_id=question.id,
-        code=submission_data.code,
-        language=submission_data.language,
-        status=result["status"],
-        stdout=result["stdout"],
-        stderr=result["stderr"],
-        execution_time_ms=result["execution_time_ms"],
-    )
+        # Only Python is auto-executed right now. Other languages
+        # (C++, Java, Text) are still accepted and stored so the
+        # candidate can submit and receive an AI evaluation — they
+        # just skip the run step.
+        submission = Submission(
+            invite_id=invite.id,
+            question_id=question.id,
+            code=submission_data.code,
+            language=submission_data.language,
+            status="submitted",
+            stdout=None,
+            stderr=None,
+            execution_time_ms=None,
+        )
 
 
     db.add(submission)
@@ -408,3 +421,152 @@ def get_submissions(
         })
 
     return results
+
+
+# ==========================================
+# DOWNLOAD REPORT
+# ==========================================
+
+@router.get("/{submission_id}/report")
+def download_report(
+    submission_id: int,
+    db: Session = Depends(get_db),
+):
+    submission = (
+        db.query(Submission)
+        .filter(Submission.id == submission_id)
+        .first()
+    )
+
+    if not submission:
+        raise HTTPException(
+            status_code=404,
+            detail="Submission not found.",
+        )
+
+    invite = (
+        db.query(TestInvite)
+        .filter(TestInvite.id == submission.invite_id)
+        .first()
+    )
+
+    question = (
+        db.query(Question)
+        .filter(Question.id == submission.question_id)
+        .first()
+    )
+
+    test = (
+        db.query(Test)
+        .filter(Test.id == question.test_id)
+        .first()
+        if question
+        else None
+    )
+
+    evaluation = (
+        db.query(AIEvaluation)
+        .filter(AIEvaluation.submission_id == submission.id)
+        .first()
+    )
+
+    def esc(value: str | None) -> str:
+        return html.escape(value or "")
+
+    def render_list(items: list[str]) -> str:
+        if not items:
+            return "<p class=\"muted\">None noted.</p>"
+
+        return "<ul>" + "".join(
+            f"<li>{esc(item)}</li>" for item in items
+        ) + "</ul>"
+
+    evaluation_section = "<p class=\"muted\">This submission has not been AI-evaluated yet.</p>"
+
+    if evaluation:
+        detected_issues = json.loads(evaluation.detected_issues)
+        strengths = json.loads(evaluation.strengths)
+        improvements = json.loads(evaluation.improvements)
+
+        evaluation_section = f"""
+        <div class="scores">
+            <div class="score-box"><span>{evaluation.overall_score}</span><label>Overall</label></div>
+            <div class="score-box"><span>{evaluation.correctness_score}</span><label>Correctness</label></div>
+            <div class="score-box"><span>{evaluation.efficiency_score}</span><label>Efficiency</label></div>
+            <div class="score-box"><span>{evaluation.code_quality_score}</span><label>Code Quality</label></div>
+        </div>
+
+        <table class="meta">
+            <tr><th>Solution appears correct</th><td>{"Yes" if evaluation.is_correct else "No"}</td></tr>
+            <tr><th>Time complexity</th><td>{esc(evaluation.time_complexity)}</td></tr>
+            <tr><th>Space complexity</th><td>{esc(evaluation.space_complexity)}</td></tr>
+        </table>
+
+        <h3>AI Explanation</h3>
+        <p>{esc(evaluation.explanation)}</p>
+
+        <h3>Strengths</h3>
+        {render_list(strengths)}
+
+        <h3>Detected Issues</h3>
+        {render_list(detected_issues)}
+
+        <h3>Suggested Improvements</h3>
+        {render_list(improvements)}
+        """
+
+    report_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assessment Report - Submission #{submission.id}</title>
+<style>
+    body {{ font-family: -apple-system, Segoe UI, Arial, sans-serif; margin: 40px; color: #111; }}
+    h1 {{ margin-bottom: 4px; }}
+    h3 {{ margin-top: 28px; margin-bottom: 8px; }}
+    .subtitle {{ color: #555; margin-top: 0; }}
+    table.meta {{ border-collapse: collapse; margin: 16px 0; }}
+    table.meta th, table.meta td {{ text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid #eee; }}
+    .scores {{ display: flex; gap: 16px; margin: 20px 0; }}
+    .score-box {{ border: 1px solid #ddd; border-radius: 10px; padding: 14px 20px; text-align: center; }}
+    .score-box span {{ display: block; font-size: 28px; font-weight: 700; }}
+    .score-box label {{ font-size: 12px; color: #666; }}
+    pre {{ background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; padding: 16px; white-space: pre-wrap; word-break: break-word; }}
+    .muted {{ color: #777; }}
+    @media print {{ body {{ margin: 12px; }} }}
+</style>
+</head>
+<body>
+    <h1>CodeAssess — Evaluation Report</h1>
+    <p class="subtitle">Generated for {esc(test.title) if test else "Unknown assessment"}</p>
+
+    <table class="meta">
+        <tr><th>Candidate</th><td>{esc(invite.candidate_name) if invite else "Unknown"}</td></tr>
+        <tr><th>Email</th><td>{esc(invite.candidate_email) if invite else "Unknown"}</td></tr>
+        <tr><th>Submission</th><td>#{submission.id}</td></tr>
+        <tr><th>Language</th><td>{esc(submission.language)}</td></tr>
+        <tr><th>Execution time</th><td>{submission.execution_time_ms if submission.execution_time_ms is not None else "N/A"} ms</td></tr>
+    </table>
+
+    <h3>Question</h3>
+    <pre>{esc(question.question_text) if question else "N/A"}</pre>
+
+    <h3>Submitted Code</h3>
+    <pre>{esc(submission.code)}</pre>
+
+    <h3>AI Evaluation</h3>
+    {evaluation_section}
+</body>
+</html>"""
+
+    headers = {
+        "Content-Disposition": (
+            f'attachment; filename="report_submission_{submission_id}.html"'
+        )
+    }
+
+    return Response(
+        content=report_html,
+        media_type="text/html",
+        headers=headers,
+    )

@@ -1,9 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default function CandidateTestPage() {
-    const [userName, setUserName] = useState("Candidate");
+function extractToken(input: string): string {
+    const trimmed = input.trim();
+
+    if (!trimmed) {
+        return "";
+    }
+
+    const match = trimmed.match(
+        /\/candidate\/test\/([^/?#]+)/
+    );
+
+    if (match) {
+        return match[1];
+    }
+
+    return trimmed;
+}
+
+export default function CandidateJoinPage() {
+    const router = useRouter();
+
+    const [userName, setUserName] = useState("");
+    const [linkOrToken, setLinkOrToken] = useState("");
+    const [error, setError] = useState("");
 
     useEffect(() => {
         const savedUser = localStorage.getItem("user");
@@ -11,151 +34,109 @@ export default function CandidateTestPage() {
         if (savedUser) {
             const user = JSON.parse(savedUser);
 
-            if (user.role !== "candidate") {
-                window.location.href = "/";
-                return;
+            if (user.role === "candidate") {
+                setUserName(user.name);
             }
-
-            setUserName(user.name);
         }
     }, []);
 
+    const handleContinue = () => {
+        const token = extractToken(linkOrToken);
+
+        if (!token) {
+            setError(
+                "Please paste the invite link or code your interviewer sent you."
+            );
+            return;
+        }
+
+        router.push(`/candidate/test/${token}`);
+    };
+
     return (
-        <main className="min-h-screen bg-[#0a0a0a] text-white">
+        <main className="flex min-h-screen flex-col bg-[#0a0a0a] text-white">
 
             <header className="border-b border-white/10">
-
                 <div className="flex items-center justify-between px-8 py-5">
-
                     <div>
                         <h1 className="text-xl font-bold">
                             CodeAssess
                         </h1>
 
                         <p className="mt-1 text-xs text-gray-500">
-                            Coding Assessment
+                            Candidate Access
                         </p>
                     </div>
 
-                    <div className="text-sm text-gray-400">
-                        {userName}
-                    </div>
-
+                    {userName && (
+                        <div className="text-sm text-gray-400">
+                            {userName}
+                        </div>
+                    )}
                 </div>
-
             </header>
 
+            <div className="flex flex-1 items-center justify-center px-6">
 
-            <div className="grid min-h-[calc(100vh-85px)] lg:grid-cols-2">
+                <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#111111] p-8">
 
-                {/* Question */}
-
-                <section className="border-r border-white/10 p-8">
-
-                    <div className="mb-8 flex items-center justify-between">
-
-                        <span className="rounded-full bg-blue-600/10 px-3 py-1 text-xs text-blue-400">
-                            Question 1 of 1
-                        </span>
-
-                        <span className="text-sm text-gray-500">
-                            Python
-                        </span>
-
+                    <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-xl font-bold">
+                        C
                     </div>
 
-
-                    <h2 className="text-2xl font-bold">
-                        Find Duplicate Elements
+                    <h2 className="text-center text-2xl font-bold">
+                        Join Your Assessment
                     </h2>
 
-                    <div className="mt-6 space-y-5 text-sm leading-7 text-gray-400">
+                    <p className="mt-3 text-center text-sm leading-6 text-gray-400">
+                        You need an invitation link from your
+                        interviewer to start a coding assessment.
+                        Paste the link, or just the invite code,
+                        below.
+                    </p>
 
-                        <p>
-                            Write a Python function that finds all
-                            duplicate elements in a list.
+                    <div className="mt-6">
+                        <label className="text-sm text-gray-400">
+                            Invitation link or code
+                        </label>
+
+                        <input
+                            value={linkOrToken}
+                            onChange={(event) => {
+                                setLinkOrToken(event.target.value);
+                                setError("");
+                            }}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                    handleContinue();
+                                }
+                            }}
+                            placeholder="https://.../candidate/test/xxxxxxxx"
+                            className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
+                        />
+                    </div>
+
+                    {error && (
+                        <p className="mt-3 text-sm text-red-400">
+                            {error}
                         </p>
+                    )}
 
-                        <div>
+                    <button
+                        onClick={handleContinue}
+                        disabled={!linkOrToken.trim()}
+                        className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Open Assessment
+                    </button>
 
-                            <h3 className="font-semibold text-white">
-                                Example
-                            </h3>
+                    <p className="mt-6 text-center text-xs text-gray-600">
+                        Haven&apos;t received a link? Ask your
+                        interviewer to invite you from their
+                        dashboard.
+                    </p>
 
-                            <pre className="mt-3 rounded-lg bg-white/5 p-4 text-gray-300">
-{`Input:
-[1, 2, 3, 2, 4, 1]
-
-Output:
-[1, 2]`}
-                            </pre>
-
-                        </div>
-
-                        <div>
-
-                            <h3 className="font-semibold text-white">
-                                Requirements
-                            </h3>
-
-                            <ul className="mt-3 list-disc space-y-2 pl-5">
-                                <li>Return each duplicate only once.</li>
-                                <li>Maintain reasonable efficiency.</li>
-                                <li>Handle an empty list.</li>
-                            </ul>
-
-                        </div>
-
-                    </div>
-
-                </section>
-
-
-                {/* Editor */}
-
-                <section className="flex flex-col p-6">
-
-                    <div className="mb-4 flex items-center justify-between">
-
-                        <h3 className="font-semibold">
-                            Your Solution
-                        </h3>
-
-                        <span className="rounded-md bg-white/5 px-3 py-1 text-xs text-gray-400">
-                            Python
-                        </span>
-
-                    </div>
-
-
-                    <textarea
-                        defaultValue={`def find_duplicates(numbers):
-    duplicates = []
-
-    for number in numbers:
-        if numbers.count(number) > 1 and number not in duplicates:
-            duplicates.append(number)
-
-    return duplicates
-`}
-                        className="min-h-[500px] flex-1 resize-none rounded-xl border border-white/10 bg-[#111111] p-5 font-mono text-sm leading-6 text-gray-200 outline-none focus:border-blue-500"
-                        spellCheck={false}
-                    />
-
-
-                    <div className="mt-4 flex justify-end gap-3">
-
-                        <button className="rounded-lg border border-white/10 bg-white/5 px-5 py-3 text-sm font-medium hover:bg-white/10">
-                            Run Code
-                        </button>
-
-                        <button className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold hover:bg-blue-500">
-                            Submit Solution
-                        </button>
-
-                    </div>
-
-                </section>
+                </div>
 
             </div>
 

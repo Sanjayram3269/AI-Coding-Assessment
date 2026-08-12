@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Test, Question, TestInvite
+from ..models import Test, Question, TestInvite, Submission, AIEvaluation
 from ..schemas import (
     TestCreate,
     TestResponse,
@@ -83,6 +83,97 @@ def get_all_invites(
     )
 
     return invites
+
+
+# ==========================================
+# CANDIDATES OVERVIEW (dashboard table)
+# ==========================================
+
+@router.get(
+    "/candidates/overview",
+)
+def get_candidates_overview(
+    db: Session = Depends(get_db),
+):
+    """
+    One row per candidate invitation, joined with its
+    assessment, question count, and best-known score —
+    powers the interviewer dashboard table.
+    """
+
+    invites = (
+        db.query(TestInvite)
+        .order_by(TestInvite.id.desc())
+        .all()
+    )
+
+    results = []
+
+    for invite in invites:
+
+        test = (
+            db.query(Test)
+            .filter(Test.id == invite.test_id)
+            .first()
+        )
+
+        question_count = (
+            db.query(Question)
+            .filter(Question.test_id == invite.test_id)
+            .count()
+        )
+
+        submissions = (
+            db.query(Submission)
+            .join(
+                Question,
+                Submission.question_id == Question.id,
+            )
+            .filter(Submission.invite_id == invite.id)
+            .all()
+        )
+
+        scores = []
+        latest_submission_id = None
+
+        for submission in submissions:
+
+            evaluation = (
+                db.query(AIEvaluation)
+                .filter(
+                    AIEvaluation.submission_id
+                    == submission.id
+                )
+                .first()
+            )
+
+            if evaluation:
+                scores.append(evaluation.overall_score)
+                latest_submission_id = submission.id
+
+        average_score = (
+            round(sum(scores) / len(scores))
+            if scores
+            else None
+        )
+
+        results.append({
+            "invite_id": invite.id,
+            "test_id": invite.test_id,
+            "test_title": (
+                test.title if test else "Unknown assessment"
+            ),
+            "candidate_name": invite.candidate_name,
+            "candidate_email": invite.candidate_email,
+            "token": invite.token,
+            "status": invite.status,
+            "question_count": question_count,
+            "submitted_count": len(submissions),
+            "average_score": average_score,
+            "latest_submission_id": latest_submission_id,
+        })
+
+    return results
 
 
 # ==========================================

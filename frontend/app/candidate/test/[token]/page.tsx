@@ -206,6 +206,9 @@ export default function CandidateTestPage() {
               ? "plaintext"
               : question.language.toLowerCase();
 
+    const canRunCode =
+        question.language.toLowerCase() === "python";
+
 
     /*
      * Run Code
@@ -672,6 +675,24 @@ export default function CandidateTestPage() {
                     </div>
 
 
+                    {/* Non-runnable language notice */}
+
+                    {!canRunCode && (
+
+                        <div className="border-t border-white/10 bg-yellow-500/5 px-4 py-3">
+
+                            <p className="text-xs text-yellow-400">
+                                Only Python code can be auto-executed
+                                right now. You can still submit your{" "}
+                                {question.language} solution — the AI
+                                will review it directly.
+                            </p>
+
+                        </div>
+
+                    )}
+
+
                     {/* Output message */}
 
                     {runMessage && (
@@ -700,7 +721,13 @@ export default function CandidateTestPage() {
 
                             <button
                                 onClick={handleRunCode}
-                                className="rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium transition hover:bg-white/10"
+                                disabled={!canRunCode}
+                                title={
+                                    canRunCode
+                                        ? undefined
+                                        : "Only Python code can be run automatically."
+                                }
+                                className="rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/5"
                             >
                                 ▶ Run Code
                             </button>

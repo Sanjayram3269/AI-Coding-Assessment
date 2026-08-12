@@ -114,6 +114,13 @@ export default function Home() {
 
                         </div>
 
+                        {role === "candidate" && (
+                            <p className="mt-3 text-xs text-gray-500">
+                                You&apos;ll be asked for your
+                                interviewer&apos;s invite link next.
+                            </p>
+                        )}
+
                     </div>
 
 

@@ -3,6 +3,11 @@ backend/venv/
 __pycache__/
 *.py[cod]
 
+# Database (contains live candidate data — never commit)
+backend/assessment.db
+*.db
+*.sqlite3
+
 # Environment variables
 .env
 .env.*
