@@ -19,146 +19,162 @@ type Question = {
     language: string;
 };
 
-export default function TestDetailsPage() {
-    const params = useParams();
+type Invite = {
+    id: number;
+    test_id: number;
+    candidate_name: string;
+    candidate_email: string;
+    token: string;
+};
 
+type Submission = {
+    id: number;
+    invite_id: number;
+    question_id: number;
+    code: string;
+    language: string;
+};
+
+const LANGUAGES = [
+    "Text",
+    "Python",
+    "C++",
+    "Java",
+];
+
+export default function InterviewerTestPage() {
+    const params = useParams();
     const testId = params.id as string;
 
     const [test, setTest] = useState<Test | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
+    const [latestSubmission, setLatestSubmission] =
+        useState<Submission | null>(null);
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
-    const [candidateName, setCandidateName] = useState("");
-    const [candidateEmail, setCandidateEmail] = useState("");
-    const [profileId, setProfileId] = useState("");
-    const [scheduledAt, setScheduledAt] = useState("");
-    const [inviteLink, setInviteLink] = useState("");
-    const [creatingInvite, setCreatingInvite] = useState(false);
-    const [inviteError, setInviteError] = useState("");
+    const [questionText, setQuestionText] = useState("");
+    const [language, setLanguage] = useState("Python");
+    const [submitting, setSubmitting] = useState(false);
+    const [submitError, setSubmitError] = useState("");
+
+
+    const loadTest = async () => {
+        try {
+            setLoading(true);
+            setError("");
+
+            const [testResponse, questionsResponse, invitesResponse] =
+                await Promise.all([
+                    fetch(`${API_URL}/tests/${testId}`),
+                    fetch(`${API_URL}/tests/${testId}/questions`),
+                    fetch(`${API_URL}/tests/invites`),
+                ]);
+
+            if (!testResponse.ok || !questionsResponse.ok) {
+                throw new Error("Failed to load test.");
+            }
+
+            const testData = await testResponse.json();
+            const questionData = await questionsResponse.json();
+
+            setTest(testData);
+            setQuestions(questionData);
+
+            // Find this test's candidate invite(s), then look up
+            // the most recent submitted solution to show read-only
+            // in the "solution — only for user" panel.
+            if (invitesResponse.ok) {
+                const allInvites: Invite[] = await invitesResponse.json();
+
+                const testInviteIds = allInvites
+                    .filter((invite) => invite.test_id === Number(testId))
+                    .map((invite) => invite.id);
+
+                if (testInviteIds.length > 0) {
+                    const submissionsResponse = await fetch(
+                        `${API_URL}/submissions`
+                    );
+
+                    if (submissionsResponse.ok) {
+                        const allSubmissions: Submission[] =
+                            await submissionsResponse.json();
+
+                        const forThisTest = allSubmissions
+                            .filter((submission) =>
+                                testInviteIds.includes(submission.invite_id)
+                            )
+                            .sort((a, b) => b.id - a.id);
+
+                        setLatestSubmission(forThisTest[0] || null);
+                    }
+                }
+            }
+        } catch (err) {
+            console.error(err);
+            setError("Unable to load test.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const loadTest = async () => {
-            try {
-                setLoading(true);
-                setError("");
-
-                const [testResponse, questionsResponse] =
-                    await Promise.all([
-                        fetch(
-                            `${API_URL}/tests/${testId}`
-                        ),
-                        fetch(
-                            `${API_URL}/tests/${testId}/questions`
-                        ),
-                    ]);
-
-                if (
-                    !testResponse.ok ||
-                    !questionsResponse.ok
-                ) {
-                    throw new Error(
-                        "Failed to load assessment."
-                    );
-                }
-
-                const testData =
-                    await testResponse.json();
-
-                const questionData =
-                    await questionsResponse.json();
-
-                setTest(testData);
-                setQuestions(questionData);
-            } catch (err) {
-                console.error(err);
-
-                setError(
-                    "Unable to load assessment."
-                );
-            } finally {
-                setLoading(false);
-            }
-        };
-
         loadTest();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [testId]);
 
-    const createInvite = async () => {
-        setInviteError("");
-        setInviteLink("");
 
-        if (!candidateName.trim()) {
-            setInviteError(
-                "Please enter the candidate name."
-            );
-            return;
-        }
+    const handleSubmitQuestion = async () => {
+        setSubmitError("");
 
-        if (!candidateEmail.trim()) {
-            setInviteError(
-                "Please enter the candidate email."
-            );
+        if (!questionText.trim()) {
+            setSubmitError("Please write a question.");
             return;
         }
 
         try {
-            setCreatingInvite(true);
+            setSubmitting(true);
 
             const response = await fetch(
-                `${API_URL}/tests/${testId}/invites`,
+                `${API_URL}/tests/${testId}/questions`,
                 {
                     method: "POST",
-
                     headers: {
                         "Content-Type": "application/json",
                     },
-
                     body: JSON.stringify({
-                        candidate_name:
-                            candidateName.trim(),
-
-                        candidate_email:
-                            candidateEmail.trim(),
-
-                        profile_id:
-                            profileId.trim() || null,
-
-                        scheduled_at:
-                            scheduledAt || null,
+                        question_text: questionText.trim(),
+                        language: language.toLowerCase(),
                     }),
                 }
             );
 
             if (!response.ok) {
-                throw new Error(
-                    "Failed to create invitation."
-                );
+                throw new Error("Failed to add question.");
             }
 
-            const invite = await response.json();
+            setQuestionText("");
+            setLanguage("Python");
 
-            const link =
-                `${window.location.origin}/candidate/test/${invite.token}`;
-
-            setInviteLink(link);
+            await loadTest();
         } catch (err) {
             console.error(err);
-
-            setInviteError(
+            setSubmitError(
                 err instanceof Error
                     ? err.message
-                    : "Failed to create invitation."
+                    : "Failed to add question."
             );
         } finally {
-            setCreatingInvite(false);
+            setSubmitting(false);
         }
     };
+
 
     if (loading) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-[#0a0a0a] text-gray-400">
-                Loading assessment...
+                Loading test...
             </main>
         );
     }
@@ -169,7 +185,7 @@ export default function TestDetailsPage() {
                 <div className="text-center">
 
                     <h1 className="text-xl font-semibold">
-                        {error || "Assessment not found"}
+                        {error || "Test not found"}
                     </h1>
 
                     <Link
@@ -188,18 +204,14 @@ export default function TestDetailsPage() {
         <main className="min-h-screen bg-[#0a0a0a] text-white">
 
             {/* Header */}
-
             <header className="border-b border-white/10">
-
-                <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-5">
-
+                <div className="mx-auto flex max-w-3xl items-center justify-between px-8 py-5">
                     <div>
                         <h1 className="text-xl font-bold">
-                            CodeAssess
+                            {test.title}
                         </h1>
-
                         <p className="mt-1 text-sm text-gray-500">
-                            Assessment Details
+                            Join link — interviewer view
                         </p>
                     </div>
 
@@ -209,285 +221,114 @@ export default function TestDetailsPage() {
                     >
                         ← Dashboard
                     </Link>
-
                 </div>
-
             </header>
 
 
             {/* Main */}
-
-            <section className="mx-auto max-w-5xl px-8 py-10">
-
-                {/* Assessment Details */}
-
-                <div className="rounded-xl border border-white/10 bg-[#111111] p-7">
-
-                    <div className="flex items-start justify-between">
-
-                        <div>
-
-                            <span className="text-xs text-blue-400">
-                                Assessment #{test.id}
-                            </span>
-
-                            <h2 className="mt-2 text-3xl font-bold">
-                                {test.title}
-                            </h2>
-
-                            <p className="mt-3 text-gray-500">
-                                {test.description ||
-                                    "No description provided."}
-                            </p>
-
-                        </div>
-
-                        <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs text-green-400">
-                            Active
-                        </span>
-
-                    </div>
-
-                </div>
-
-
-                {/* Invite Candidate */}
-
-                <div className="mt-6 rounded-xl border border-white/10 bg-[#111111] p-7">
-
-                    <h3 className="text-lg font-semibold">
-                        Invite Candidate
-                    </h3>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                        Generate a private assessment link for a candidate.
-                    </p>
-
-
-                    <div className="mt-6 grid gap-4 md:grid-cols-2">
-
-                        {/* Candidate Name */}
-
-                        <div>
-
-                            <label className="text-sm text-gray-400">
-                                Candidate Name
-                            </label>
-
-                            <input
-                                value={candidateName}
-                                onChange={(event) =>
-                                    setCandidateName(
-                                        event.target.value
-                                    )
-                                }
-                                placeholder="Candidate name"
-                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
-                            />
-
-                        </div>
-
-
-                        {/* Candidate Email */}
-
-                        <div>
-
-                            <label className="text-sm text-gray-400">
-                                Candidate Email
-                            </label>
-
-                            <input
-                                type="email"
-                                value={candidateEmail}
-                                onChange={(event) =>
-                                    setCandidateEmail(
-                                        event.target.value
-                                    )
-                                }
-                                placeholder="candidate@example.com"
-                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
-                            />
-
-                        </div>
-
-
-                        {/* Profile ID */}
-
-                        <div>
-
-                            <label className="text-sm text-gray-400">
-                                Profile ID{" "}
-                                <span className="text-gray-600">
-                                    (optional)
-                                </span>
-                            </label>
-
-                            <input
-                                value={profileId}
-                                onChange={(event) =>
-                                    setProfileId(
-                                        event.target.value
-                                    )
-                                }
-                                placeholder="Your internal reference/ID for this candidate"
-                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500"
-                            />
-
-                        </div>
-
-
-                        {/* Time and Date */}
-
-                        <div>
-
-                            <label className="text-sm text-gray-400">
-                                Scheduled Date &amp; Time{" "}
-                                <span className="text-gray-600">
-                                    (optional)
-                                </span>
-                            </label>
-
-                            <input
-                                type="datetime-local"
-                                value={scheduledAt}
-                                onChange={(event) =>
-                                    setScheduledAt(
-                                        event.target.value
-                                    )
-                                }
-                                className="mt-2 w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none transition focus:border-blue-500 [color-scheme:dark]"
-                            />
-
-                        </div>
-
-                    </div>
-
-
-                    {/* Generate Button */}
-
-                    <button
-                        onClick={createInvite}
-                        disabled={creatingInvite}
-                        className="mt-5 rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        {creatingInvite
-                            ? "Generating..."
-                            : "Generate Invite Link"}
-                    </button>
-
-
-                    {/* Error */}
-
-                    {inviteError && (
-                        <div className="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-                            {inviteError}
-                        </div>
-                    )}
-
-
-                    {/* Generated Link */}
-
-                    {inviteLink && (
-                        <div className="mt-5">
-
-                            <p className="text-sm font-medium text-green-400">
-                                Invitation created successfully
-                            </p>
-
-                            <div className="mt-3 flex gap-2">
-
-                                <input
-                                    value={inviteLink}
-                                    readOnly
-                                    className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-300 outline-none"
-                                />
-
-                                <button
-                                    onClick={() =>
-                                        navigator.clipboard.writeText(
-                                            inviteLink
-                                        )
-                                    }
-                                    className="rounded-lg border border-white/10 px-4 py-3 text-sm transition hover:bg-white/5"
-                                >
-                                    Copy
-                                </button>
-
-                            </div>
-
-                        </div>
-                    )}
-
-                </div>
-
-
-                {/* Questions */}
-
-                <div className="mt-8">
-
-                    <div className="flex items-center justify-between">
-
-                        <div>
-
-                            <h3 className="text-xl font-semibold">
-                                Questions
-                            </h3>
-
-                            <p className="mt-1 text-sm text-gray-500">
-                                {questions.length} question
-                                {questions.length !== 1
-                                    ? "s"
-                                    : ""}
-                            </p>
-
-                        </div>
-
-                    </div>
-
-
-                    {/* Question List */}
-
-                    <div className="mt-5 space-y-4">
-
-                        {questions.length === 0 && (
-                            <div className="rounded-xl border border-white/10 bg-[#111111] p-6 text-sm text-gray-500">
-                                No questions have been added to this assessment yet.
-                            </div>
-                        )}
-
-
-                        {questions.map(
-                            (question, index) => (
-
+            <section className="mx-auto max-w-3xl px-8 py-10">
+
+                {questions.length > 0 && (
+                    <div className="mb-6 rounded-xl border border-white/10 bg-[#111111] p-5">
+                        <h3 className="text-sm font-semibold text-gray-300">
+                            Questions added ({questions.length})
+                        </h3>
+
+                        <div className="mt-3 space-y-2">
+                            {questions.map((question, index) => (
                                 <div
                                     key={question.id}
-                                    className="rounded-xl border border-white/10 bg-[#111111] p-6"
+                                    className="flex items-start justify-between gap-4 rounded-lg bg-white/5 px-4 py-3 text-sm"
                                 >
-
-                                    <div className="flex items-center justify-between">
-
-                                        <h4 className="font-semibold">
-                                            Question {index + 1}
-                                        </h4>
-
-                                        <span className="rounded-md bg-white/5 px-3 py-1 text-xs text-gray-400">
-                                            {question.language}
-                                        </span>
-
-                                    </div>
-
-
-                                    <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-gray-400">
-                                        {question.question_text}
-                                    </p>
-
+                                    <span className="text-gray-400">
+                                        {index + 1}.{" "}
+                                        {question.question_text.length > 80
+                                            ? `${question.question_text.slice(0, 80)}...`
+                                            : question.question_text}
+                                    </span>
+                                    <span className="shrink-0 rounded-md bg-white/5 px-2 py-1 text-xs text-gray-500">
+                                        {question.language}
+                                    </span>
                                 </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
-                            )
-                        )}
+                {/* Question — only for interviewer */}
+                <div className="rounded-xl border border-white/10 bg-[#111111] p-6">
 
+                    <label className="text-sm font-semibold text-gray-300">
+                        Question{" "}
+                        <span className="font-normal text-gray-600">
+                            (only for interviewer)
+                        </span>
+                    </label>
+
+                    <textarea
+                        value={questionText}
+                        onChange={(event) =>
+                            setQuestionText(event.target.value)
+                        }
+                        placeholder="Write the coding problem here..."
+                        rows={6}
+                        className="mt-3 w-full resize-none rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 outline-none transition focus:border-blue-500"
+                    />
+
+                    <div className="mt-5">
+                        <label className="text-sm text-gray-400">
+                            Select Language (Text, Python, C++, Java)
+                        </label>
+
+                        <select
+                            value={language}
+                            onChange={(event) =>
+                                setLanguage(event.target.value)
+                            }
+                            className="mt-2 rounded-lg border border-white/10 bg-[#181818] px-4 py-3 text-sm outline-none focus:border-blue-500"
+                        >
+                            {LANGUAGES.map((item) => (
+                                <option key={item} value={item}>
+                                    {item}
+                                </option>
+                            ))}
+                        </select>
                     </div>
 
+                </div>
+
+                {/* Solution — only for user */}
+                <div className="mt-6 rounded-xl border border-white/10 bg-[#111111] p-6">
+
+                    <label className="text-sm font-semibold text-gray-300">
+                        Solution{" "}
+                        <span className="font-normal text-gray-600">
+                            (only for user)
+                        </span>
+                    </label>
+
+                    <div className="mt-3 min-h-[140px] w-full whitespace-pre-wrap rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm leading-6 text-gray-400">
+                        {latestSubmission
+                            ? latestSubmission.code
+                            : "Waiting for the candidate's solution — it will appear here once submitted."}
+                    </div>
+
+                </div>
+
+                {submitError && (
+                    <div className="mt-5 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                        {submitError}
+                    </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                    <button
+                        onClick={handleSubmitQuestion}
+                        disabled={submitting}
+                        className="rounded-lg bg-blue-600 px-7 py-3 text-sm font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {submitting ? "Submitting..." : "Submit"}
+                    </button>
                 </div>
 
             </section>

@@ -606,116 +606,61 @@ export default function CandidateTestPage() {
 
 
             {/* ================================================= */}
-            {/* MAIN SPLIT SCREEN */}
+            {/* STACKED LAYOUT — QUESTION / LANGUAGE / SOLUTION */}
             {/* ================================================= */}
 
-            <div className="grid min-h-0 flex-1 lg:grid-cols-2">
+            <div className="min-h-0 flex-1 overflow-y-auto">
 
+                <div className="mx-auto max-w-4xl px-6 py-8 lg:px-8">
 
-                {/* ================================================= */}
-                {/* LEFT — QUESTION */}
-                {/* ================================================= */}
-
-                <section className="overflow-y-auto border-b border-white/10 p-6 lg:border-b-0 lg:border-r lg:p-8">
-
-                    <div className="mx-auto max-w-2xl">
+                    {/* Question — only for interviewer */}
+                    <div className="rounded-xl border border-white/10 bg-[#111111] p-6">
 
                         <div className="flex items-center justify-between">
+
+                            <label className="text-sm font-semibold text-gray-300">
+                                Question{" "}
+                                <span className="font-normal text-gray-600">
+                                    (only for interviewer)
+                                </span>
+                            </label>
 
                             <span className="rounded-full bg-blue-600/10 px-3 py-1 text-xs font-medium text-blue-400">
                                 Question {currentQuestion + 1}
                             </span>
 
-                            <span className="rounded-md bg-white/5 px-3 py-1 text-xs text-gray-400">
-                                {question.language}
-                            </span>
-
                         </div>
 
-
-                        <h2 className="mt-6 text-2xl font-bold">
-                            Coding Problem
-                        </h2>
-
-
-                        <div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-gray-400">
+                        <div className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-400">
                             {question.question_text}
-                        </div>
-
-
-                        <div className="mt-8 rounded-xl border border-white/10 bg-[#111111] p-5">
-
-                            <h3 className="text-sm font-semibold text-white">
-                                Assessment Information
-                            </h3>
-
-                            <div className="mt-4 space-y-3 text-sm">
-
-                                <div className="flex justify-between gap-4">
-
-                                    <span className="text-gray-500">
-                                        Assessment
-                                    </span>
-
-                                    <span className="text-right text-gray-300">
-                                        {test.title}
-                                    </span>
-
-                                </div>
-
-
-                                <div className="flex justify-between gap-4">
-
-                                    <span className="text-gray-500">
-                                        Language
-                                    </span>
-
-                                    <span className="text-gray-300">
-                                        {question.language}
-                                    </span>
-
-                                </div>
-
-
-                                <div className="flex justify-between gap-4">
-
-                                    <span className="text-gray-500">
-                                        Candidate
-                                    </span>
-
-                                    <span className="text-gray-300">
-                                        {invite.candidate_name}
-                                    </span>
-
-                                </div>
-
-                            </div>
-
                         </div>
 
                     </div>
 
-                </section>
+                    {/* Select Language */}
+                    <div className="mt-5 flex items-center gap-3">
+                        <span className="text-sm text-gray-400">
+                            Select Language (Text, Python, C++, Java)
+                        </span>
 
+                        <span className="rounded-md bg-white/5 px-3 py-1.5 text-xs text-gray-300">
+                            {question.language}
+                        </span>
+                    </div>
 
-                {/* ================================================= */}
-                {/* RIGHT — CODE EDITOR */}
-                {/* ================================================= */}
+                    {/* Solution — only for user */}
+                    <div className="mt-5 flex flex-col rounded-xl border border-white/10 bg-[#0d0d0d]">
 
-                <section className="flex min-h-[600px] flex-col bg-[#0d0d0d]">
+                        <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4">
 
+                            <label className="text-sm font-semibold text-gray-300">
+                                Solution{" "}
+                                <span className="font-normal text-gray-600">
+                                    (only for user)
+                                </span>
+                            </label>
 
-                    {/* Editor header */}
-
-                    <div className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-4">
-
-                        <div className="flex items-center gap-3">
-
-                            <span className="h-3 w-3 rounded-full bg-red-500" />
-                            <span className="h-3 w-3 rounded-full bg-yellow-500" />
-                            <span className="h-3 w-3 rounded-full bg-green-500" />
-
-                            <span className="ml-2 text-xs text-gray-500">
+                            <span className="text-xs text-gray-500">
                                 solution.
                                 {language === "cpp"
                                     ? "cpp"
@@ -728,98 +673,84 @@ export default function CandidateTestPage() {
 
                         </div>
 
+                        <div className="h-[420px]">
+                            <Editor
+                                height="100%"
+                                language={language}
+                                theme="vs-dark"
+                                value={code}
+                                onChange={(value) =>
+                                    setCode(value || "")
+                                }
+                                options={{
+                                    fontSize: 14,
 
-                        <span className="rounded-md bg-white/5 px-3 py-1 text-xs text-gray-400">
-                            {question.language}
-                        </span>
+                                    minimap: {
+                                        enabled: false,
+                                    },
+
+                                    automaticLayout: true,
+
+                                    scrollBeyondLastLine: false,
+
+                                    padding: {
+                                        top: 16,
+                                        bottom: 16,
+                                    },
+
+                                    tabSize: 4,
+
+                                    wordWrap: "on",
+
+                                    lineNumbers: "on",
+
+                                    folding: true,
+
+                                    renderWhitespace: "selection",
+                                }}
+                            />
+                        </div>
+
+                        {/* Non-runnable language notice */}
+
+                        {!canRunCode && (
+
+                            <div className="border-t border-white/10 bg-yellow-500/5 px-4 py-3">
+
+                                <p className="text-xs text-yellow-400">
+                                    Only Python code can be auto-executed
+                                    right now. You can still submit your{" "}
+                                    {question.language} solution — the AI
+                                    will review it directly.
+                                </p>
+
+                            </div>
+
+                        )}
+
+                        {/* Output message */}
+
+                        {runMessage && (
+
+                            <div className="border-t border-white/10 bg-[#111111] px-4 py-3">
+
+                                <p className="text-xs text-gray-400">
+                                    {runMessage}
+                                </p>
+
+                            </div>
+
+                        )}
 
                     </div>
 
+                    {/* Actions */}
 
-                    {/* Monaco */}
-
-                    <div className="min-h-0 flex-1">
-
-                        <Editor
-                            height="100%"
-                            language={language}
-                            theme="vs-dark"
-                            value={code}
-                            onChange={(value) =>
-                                setCode(value || "")
-                            }
-                            options={{
-                                fontSize: 14,
-
-                                minimap: {
-                                    enabled: false,
-                                },
-
-                                automaticLayout: true,
-
-                                scrollBeyondLastLine: false,
-
-                                padding: {
-                                    top: 16,
-                                    bottom: 16,
-                                },
-
-                                tabSize: 4,
-
-                                wordWrap: "on",
-
-                                lineNumbers: "on",
-
-                                folding: true,
-
-                                renderWhitespace: "selection",
-                            }}
-                        />
-
-                    </div>
-
-
-                    {/* Non-runnable language notice */}
-
-                    {!canRunCode && (
-
-                        <div className="border-t border-white/10 bg-yellow-500/5 px-4 py-3">
-
-                            <p className="text-xs text-yellow-400">
-                                Only Python code can be auto-executed
-                                right now. You can still submit your{" "}
-                                {question.language} solution — the AI
-                                will review it directly.
-                            </p>
-
-                        </div>
-
-                    )}
-
-
-                    {/* Output message */}
-
-                    {runMessage && (
-
-                        <div className="border-t border-white/10 bg-[#111111] px-4 py-3">
-
-                            <p className="text-xs text-gray-400">
-                                {runMessage}
-                            </p>
-
-                        </div>
-
-                    )}
-
-
-                    {/* Editor actions */}
-
-                    <div className="flex shrink-0 items-center justify-between border-t border-white/10 bg-[#111111] px-4 py-4">
+                    <div className="mt-5 flex items-center justify-between">
 
                         <div className="text-xs text-gray-600">
                             Changes are saved locally until submission.
                         </div>
-
 
                         <div className="flex gap-3">
 
@@ -836,11 +767,10 @@ export default function CandidateTestPage() {
                                 ▶ Run Code
                             </button>
 
-
                             <button
                                 onClick={handleSubmit}
                                 disabled={submitting}
-                                className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-lg bg-blue-600 px-7 py-2.5 text-sm font-semibold transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {submitting
                                     ? "Submitting..."
@@ -848,14 +778,14 @@ export default function CandidateTestPage() {
                                           question.id
                                       ]
                                       ? "Resubmit"
-                                      : "Submit Solution"}
+                                      : "Submit"}
                             </button>
 
                         </div>
 
                     </div>
 
-                </section>
+                </div>
 
             </div>
 
