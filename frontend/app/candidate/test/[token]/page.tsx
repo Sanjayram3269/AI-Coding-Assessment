@@ -734,9 +734,9 @@ export default function CandidateTestPage() {
 
                             <div className="border-t border-white/10 bg-[#111111] px-4 py-3">
 
-                                <p className="text-xs text-gray-400">
+                                <pre className="whitespace-pre-wrap break-words font-mono text-xs text-gray-400">
                                     {runMessage}
-                                </p>
+                                </pre>
 
                             </div>
 

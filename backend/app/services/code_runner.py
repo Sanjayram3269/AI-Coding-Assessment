@@ -56,11 +56,20 @@ def run_python_code(code: str) -> dict:
 
             status = "error"
 
+        # Tracebacks reference the sandboxed temp file by its real
+        # server-side path (e.g. C:\Users\...\AppData\Local\Temp\tmpXXXX.py).
+        # Replace it with a stable, candidate-facing filename instead of
+        # leaking server filesystem details into the UI.
+        stderr = (
+            process.stderr.replace(temp_path, "solution.py")
+            if process.stderr
+            else process.stderr
+        )
 
         return {
             "status": status,
             "stdout": process.stdout,
-            "stderr": process.stderr,
+            "stderr": stderr,
             "execution_time_ms": execution_time_ms,
         }
 
