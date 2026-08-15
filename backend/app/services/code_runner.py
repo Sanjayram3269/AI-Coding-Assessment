@@ -8,7 +8,7 @@ import time
 MAX_EXECUTION_TIME = 5
 
 
-def run_python_code(code: str) -> dict:
+def run_python_code(code: str, stdin: str = "") -> dict:
     temp_path = None
 
     try:
@@ -29,6 +29,8 @@ def run_python_code(code: str) -> dict:
 
         process = subprocess.run(
             [sys.executable, temp_path],
+
+            input=stdin,
 
             capture_output=True,
 

@@ -80,6 +80,11 @@ class RunCodeRequest(BaseModel):
 
     language: str = "python"
 
+    stdin: str = Field(
+        default="",
+        max_length=10000,
+    )
+
 
 class RunCodeResponse(BaseModel):
     status: str
@@ -98,6 +103,11 @@ class SubmissionCreate(BaseModel):
     )
 
     language: str = "python"
+
+    stdin: str = Field(
+        default="",
+        max_length=10000,
+    )
 
 
 class SubmissionResponse(BaseModel):

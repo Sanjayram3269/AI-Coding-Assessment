@@ -75,6 +75,8 @@ export default function CandidateTestPage() {
 `
     );
 
+    const [stdin, setStdin] = useState("");
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
@@ -266,6 +268,7 @@ export default function CandidateTestPage() {
                 body: JSON.stringify({
                     code,
                     language: question.language,
+                    stdin,
                 }),
             }
         );
@@ -348,6 +351,7 @@ export default function CandidateTestPage() {
                         question_id: question.id,
                         code,
                         language: question.language,
+                        stdin,
                     }),
                 }
             );
@@ -459,6 +463,7 @@ export default function CandidateTestPage() {
         setCurrentQuestion(index);
 
         setRunMessage("");
+        setStdin("");
 
         setCode(
             `def solution():
@@ -710,6 +715,34 @@ export default function CandidateTestPage() {
                                 }}
                             />
                         </div>
+
+                        {/* Program input — only relevant if the code reads from stdin */}
+
+                        {canRunCode && (
+
+                            <div className="border-t border-white/10 px-4 py-3">
+
+                                <label className="text-xs text-gray-500">
+                                    Program input{" "}
+                                    <span className="text-gray-600">
+                                        (optional — one value per line, for
+                                        code that uses input())
+                                    </span>
+                                </label>
+
+                                <textarea
+                                    value={stdin}
+                                    onChange={(event) =>
+                                        setStdin(event.target.value)
+                                    }
+                                    placeholder={"5\n3\n9\n1\n7"}
+                                    rows={2}
+                                    className="mt-2 w-full resize-y rounded-lg border border-white/10 bg-white/5 px-3 py-2 font-mono text-xs text-gray-300 outline-none transition focus:border-blue-500"
+                                />
+
+                            </div>
+
+                        )}
 
                         {/* Non-runnable language notice */}
 

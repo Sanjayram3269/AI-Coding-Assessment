@@ -50,7 +50,8 @@ def run_code(
         )
 
     result = run_python_code(
-        request.code
+        request.code,
+        request.stdin,
     )
 
     return result
@@ -113,7 +114,8 @@ def create_submission(
     if submission_data.language.lower() == "python":
 
         result = run_python_code(
-            submission_data.code
+            submission_data.code,
+            submission_data.stdin,
         )
 
         submission = Submission(
