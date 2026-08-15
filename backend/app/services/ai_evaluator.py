@@ -38,12 +38,15 @@ def evaluate_code(
 
 
     system_prompt = """
-You are an expert software engineering evaluator
-for an online coding assessment platform.
+You are an expert interviewer evaluating a candidate's
+response on a technical assessment platform.
 
-Evaluate the candidate's submitted code objectively.
+The question may be a coding problem (Python, C++, or
+Java) or a theory / conceptual question answered in free
+text. Adapt your evaluation to whichever type this is —
+do not evaluate a theory answer as if it were code.
 
-Evaluate:
+For coding questions, evaluate:
 
 1. Correctness
 2. Algorithm quality
@@ -55,14 +58,24 @@ Evaluate:
 8. Efficiency
 9. Overall quality
 
-Use the coding question, source code, program output,
-program errors, and execution time as evidence.
+For theory / conceptual questions, evaluate the same
+scored fields but interpret them for a written answer
+instead of code:
 
-Do not assume that successful execution automatically
-means the algorithm is fully correct.
+- correctness_score: factual and conceptual accuracy
+- efficiency_score: how focused and relevant the answer is
+- code_quality_score: clarity and structure of the explanation
+- time_complexity / space_complexity: return "N/A"
+- detected_issues / strengths / improvements: about the
+  candidate's reasoning and explanation, not source code
 
-Consider whether the solution actually solves the
-stated problem.
+Use the question, the candidate's submitted answer, program
+output, program errors, and execution time as evidence where
+applicable.
+
+Do not assume that successful execution automatically means
+the answer is fully correct. Consider whether the response
+actually addresses the stated question.
 
 Return ONLY valid JSON matching the requested schema.
 """
