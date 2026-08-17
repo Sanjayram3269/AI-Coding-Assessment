@@ -754,7 +754,7 @@ export default function CandidateTestPage() {
                             <div className="border-t border-white/10 bg-yellow-500/5 px-4 py-3">
 
                                 <p className="text-xs text-yellow-400">
-                                    This is a text/theory question — there's
+                                    This is a text/theory question — there&apos;s
                                     no code to run. Submit your answer
                                     directly and the AI will review it.
                                 </p>
