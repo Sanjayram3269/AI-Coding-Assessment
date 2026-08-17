@@ -103,7 +103,7 @@ Under the hood, a submitted solution is executed (where supported), sent to an L
 **Candidate**
 - Access an assessment only via a private invite link (no open sign-up)
 - Monaco-based code editor with syntax highlighting per language
-- Run code and see stdout/stderr before submitting (Python)
+- Run code and see stdout/stderr before submitting (Python, C++, and Java — compiled/executed server-side; optional stdin for programs that call `input()`/`cin`/`Scanner`)
 - Submit for instant AI evaluation and view a detailed results page
 
 **AI Evaluation**
@@ -173,7 +173,8 @@ AI-Coding-Assessment/
 - Python 3.12+
 - Node.js 18+
 - An [OpenRouter](https://openrouter.ai/) API key
-- `g++` on PATH if you want C++ code to run (Python is required for Python execution; Java execution requires a JDK — see [Known Limitations](#known-limitations))
+- `g++` on PATH to run C++ submissions (any recent version; C++17)
+- A JDK on PATH to run Java submissions (`javac`/`java`; JDK 17+ recommended) — e.g. [Eclipse Temurin](https://adoptium.net/)
 
 ### 1. Backend
 
@@ -280,8 +281,10 @@ Full interactive documentation is available at `http://127.0.0.1:8000/docs` whil
 
 ## Known Limitations
 
-- **Code execution** currently runs Python only. C++ and Java questions can be created, solved, and submitted, and are still fully AI-evaluated — they just aren't auto-compiled/run yet, so the "Run Code" button is disabled for them with an explanatory note.
+- **Code execution** runs Python, C++, and Java. Python runs directly via the interpreter; C++ is compiled with `g++` and run as a native binary; Java's public class is detected from the source, compiled with `javac`, and run with `java`. All three accept optional stdin for programs that read input. Compiler/runtime error output has server temp paths scrubbed before being shown to candidates.
 - **Text-type questions** are for free-form/theory answers and are never executed, only AI-evaluated.
+- **Execution has no sandboxing beyond a timeout** — submitted code runs as a plain subprocess (no container/seccomp isolation), same trust model for all three languages. Fine for a trusted-candidate assessment tool; would need real sandboxing before accepting code from untrusted parties.
+- **Deploying C++/Java execution to production requires the server itself to have `g++` and a JDK installed.** The bundled `render.yaml` provisions a native Python service, which is not guaranteed to include either — verify (or switch to a Docker-based service that installs both) before relying on C++/Java execution in a deployed environment.
 - **No real backend authentication.** Signing in as "Interviewer" vs "Candidate" is a client-side preference (`localStorage`), and every interviewer currently shares one hardcoded `interviewer_id`. There's a client-side route guard on `/interviewer/*` pages, but it's not a substitute for real accounts/sessions if this were to handle real candidate data in production.
 
 ---

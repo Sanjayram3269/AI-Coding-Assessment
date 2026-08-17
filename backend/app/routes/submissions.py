@@ -21,7 +21,9 @@ from ..schemas import (
     SubmissionResponse,
 )
 
-from ..services.code_runner import run_python_code
+from ..services.code_runner import run_code as execute_code
+
+RUNNABLE_LANGUAGES = {"python", "cpp", "c++", "java"}
 
 from ..services.ai_evaluator import evaluate_code
 
@@ -43,13 +45,17 @@ router = APIRouter(
 def run_code(
     request: RunCodeRequest,
 ):
-    if request.language.lower() != "python":
+    if request.language.lower() not in RUNNABLE_LANGUAGES:
         raise HTTPException(
             status_code=400,
-            detail="Only Python execution is available right now.",
+            detail=(
+                "This question type has no code to run — "
+                "submit your answer directly."
+            ),
         )
 
-    result = run_python_code(
+    result = execute_code(
+        request.language,
         request.code,
         request.stdin,
     )
@@ -111,9 +117,10 @@ def create_submission(
         )
 
 
-    if submission_data.language.lower() == "python":
+    if submission_data.language.lower() in RUNNABLE_LANGUAGES:
 
-        result = run_python_code(
+        result = execute_code(
+            submission_data.language,
             submission_data.code,
             submission_data.stdin,
         )
@@ -131,10 +138,9 @@ def create_submission(
 
     else:
 
-        # Only Python is auto-executed right now. Other languages
-        # (C++, Java, Text) are still accepted and stored so the
-        # candidate can submit and receive an AI evaluation — they
-        # just skip the run step.
+        # Text questions are theory/free-form and are never executed —
+        # they're accepted and stored so the candidate can submit and
+        # receive an AI evaluation directly.
         submission = Submission(
             invite_id=invite.id,
             question_id=question.id,

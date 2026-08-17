@@ -241,8 +241,11 @@ export default function CandidateTestPage() {
               ? "plaintext"
               : question.language.toLowerCase();
 
-    const canRunCode =
-        question.language.toLowerCase() === "python";
+    const canRunCode = [
+        "python",
+        "c++",
+        "java",
+    ].includes(question.language.toLowerCase());
 
 
     /*
@@ -751,10 +754,9 @@ export default function CandidateTestPage() {
                             <div className="border-t border-white/10 bg-yellow-500/5 px-4 py-3">
 
                                 <p className="text-xs text-yellow-400">
-                                    Only Python code can be auto-executed
-                                    right now. You can still submit your{" "}
-                                    {question.language} solution — the AI
-                                    will review it directly.
+                                    This is a text/theory question — there's
+                                    no code to run. Submit your answer
+                                    directly and the AI will review it.
                                 </p>
 
                             </div>
